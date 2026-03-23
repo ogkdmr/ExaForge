@@ -1,0 +1,50 @@
+# ExaForge — Generic text generation example
+#
+# Sends each input document through a system prompt + user text
+# and collects the model's response as JSONL.
+#
+# Usage:
+#   exaforge run --config configs/generic_generation.yaml
+
+aegis:
+    # Point at an existing endpoints file (Aegis launched separately)
+    auto_launch: false
+    endpoints_file: aegis_endpoints.txt
+
+task:
+    name: generation
+    system_prompt: >-
+        You are a helpful scientific assistant. Summarise the
+        following text in three concise bullet points.
+    temperature: 0.5
+    max_tokens: 1024
+
+reader:
+    name: jsonl
+    input_dir: /lus/flare/projects/MyProject/documents
+    glob_patterns:
+        - "*.jsonl"
+    text_field: text
+    id_field: id
+
+writer:
+    name: jsonl
+    output_dir: /lus/flare/projects/MyProject/summaries
+    buffer_size: 200
+    base_name: summaries
+
+client:
+    max_concurrent_requests: 128
+    timeout: 120
+    max_retries: 2
+    retry_backoff: 1.5
+    load_balance_strategy: round_robin
+
+monitor:
+    log_file: /lus/flare/projects/MyProject/summaries/run.log
+    progress_interval: 60
+    enable_rich: true
+
+checkpoint:
+    enabled: true
+    checkpoint_file: /lus/flare/projects/MyProject/summaries/checkpoint.json

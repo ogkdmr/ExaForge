@@ -1,0 +1,51 @@
+# ExaForge — Paper card extraction example
+#
+# Extracts model cards from a directory of parsed scientific papers
+# using vLLM instances spawned by Aegis on Aurora.
+#
+# Usage:
+#   exaforge run --config configs/paper_cards.yaml
+
+aegis:
+    # Path to an Aegis YAML config file (required when auto_launch is true)
+    config_path: /path/to/your/aegis_config.yaml
+    auto_launch: true
+    wait_for_endpoints: true
+    endpoints_file: aegis_endpoints.txt
+
+task:
+    name: card_extraction
+    mode: model_card                # model_card | agent_card | data_card
+    system_prompt: >-
+        You are a helpful assistant specialised in analysing
+        scientific texts for bioinformatics workflows.
+    temperature: 0.3
+    max_tokens: 4000
+
+reader:
+    name: text_directory
+    input_dir: /lus/flare/projects/MyProject/parsed_papers
+    glob_patterns:
+        - "*.txt"
+
+writer:
+    name: jsonl
+    output_dir: /lus/flare/projects/MyProject/model_cards_output
+    buffer_size: 500
+    base_name: model_cards
+
+client:
+    max_concurrent_requests: 64
+    timeout: 300
+    max_retries: 3
+    retry_backoff: 2.0
+    load_balance_strategy: round_robin
+
+monitor:
+    log_file: /lus/flare/projects/MyProject/model_cards_output/run.log
+    progress_interval: 30
+    enable_rich: true
+
+checkpoint:
+    enabled: true
+    checkpoint_file: /lus/flare/projects/MyProject/model_cards_output/checkpoint.json

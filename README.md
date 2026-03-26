@@ -27,12 +27,20 @@ all with Lustre-filesystem-aware I/O and built-in checkpointing.
 ## Installation
 
 ```bash
-# Editable install with development extras
+# Development install (tests, linting, type-checking)
 pip install -e ".[dev]"
 
-# If you want Aegis auto-launch support
-pip install -e ".[aegis]"
+# With Aegis auto-launch support (installs Aegis directly from GitHub)
+pip install -e ".[dev,aegis]"
 ```
+
+> **Note:** The `aegis` extra installs the
+> [Aegis HPC launcher](https://github.com/ogkdmr/Aegis) from GitHub (pinned
+> to a specific commit in `pyproject.toml`) — it is not the `aegis` package on
+> PyPI. To upgrade Aegis, update the commit hash in `pyproject.toml` and
+> re-run the install. Auto-launch (`aegis.auto_launch: true`) is only needed
+> if you want ExaForge to submit the PBS job itself; if you already have a
+> running endpoints file you can skip it.
 
 **Dependencies** (installed automatically):
 

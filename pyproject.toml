@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-aegis = ["aegis"]
+aegis = ["aegis @ git+https://github.com/ogkdmr/Aegis.git@efcb608cb5b1ce0a8a53019c747c1074379ca2f1"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",

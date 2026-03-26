@@ -11,7 +11,7 @@ aegis:
     config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml
     auto_launch: true
     wait_for_endpoints: true
-    endpoints_file: /home/ogokdemir/Aegis/hostfiles/endpoints.txt
+    endpoints_file: /home/ogokdemir/ExaForge/aegis_endpoints.txt
 
 task:
     name: card_extraction

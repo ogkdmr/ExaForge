@@ -80,6 +80,7 @@ def launch_aegis(config: AegisConfig) -> list[str]:
 
     logger.info("Generating PBS script")
     script = generate_pbs_script(aegis_cfg)
+    script = script.replace("#PBS -N aegis", "#PBS -N exaforge", 1)
 
     hf_token = aegis_cfg.hf_token
     logger.info("Submitting PBS job")

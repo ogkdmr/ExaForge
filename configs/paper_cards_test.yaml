@@ -8,10 +8,10 @@
 
 aegis:
     # Path to an Aegis YAML config file (required when auto_launch is true)
-    config_path: /path/to/your/aegis_config.yaml
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml
     auto_launch: true
     wait_for_endpoints: true
-    endpoints_file: aegis_endpoints.txt
+    endpoints_file: /home/ogokdemir/Aegis/hostfiles/endpoints.txt
 
 task:
     name: card_extraction
@@ -19,19 +19,19 @@ task:
     system_prompt: >-
         You are a helpful assistant specialised in analysing
         scientific texts for bioinformatics workflows.
-    temperature: 0.3
+    temperature: 0.0
     max_tokens: 4000
 
 reader:
     name: text_directory
-    input_dir: /lus/flare/projects/MyProject/parsed_papers
+    input_dir: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Parsed
     glob_patterns:
-        - "*.txt"
+        - "*.mmd"
 
 writer:
     name: jsonl
-    output_dir: /lus/flare/projects/MyProject/model_cards_output
-    buffer_size: 500
+    output_dir: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Model-Cards/cards
+    buffer_size: 8
     base_name: model_cards
 
 client:
@@ -42,10 +42,12 @@ client:
     load_balance_strategy: round_robin
 
 monitor:
-    log_file: /lus/flare/projects/MyProject/model_cards_output/run.log
+    log_file: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Model-Cards/run.log
     progress_interval: 30
     enable_rich: true
 
 checkpoint:
     enabled: true
-    checkpoint_file: /lus/flare/projects/MyProject/model_cards_output/checkpoint.json
+    checkpoint_file: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Model-Cards/checkpoint.json
+
+max_items: 128  # test mode — remove or set to 0 to process all papers

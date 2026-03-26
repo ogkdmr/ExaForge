@@ -111,3 +111,4 @@ class TestGetEndpointPool:
 
         # Restore
         importlib.reload(exaforge.aegis_bridge)
+

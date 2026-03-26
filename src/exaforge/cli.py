@@ -66,7 +66,11 @@ def run(
 
     pool = get_endpoint_pool(cfg.aegis)
 
-    monitor = Monitor(cfg.monitor, total=0)
+    monitor = Monitor(
+        cfg.monitor,
+        total=0,
+        endpoint_urls=[ep.url for ep in pool.endpoints],
+    )
 
     orch = Orchestrator(
         cfg, pool, on_progress=monitor.on_progress

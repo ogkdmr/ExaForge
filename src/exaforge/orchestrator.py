@@ -163,6 +163,7 @@ class Orchestrator:
                 self._total,
                 item.id,
                 response.latency,
+                response.endpoint_url,
             )
 
         if self._completed % self.config.writer.buffer_size == 0:

@@ -165,7 +165,9 @@ writer:
 
 ```yaml
 client:
-    max_concurrent_requests: 64    # Async concurrency limit
+    max_concurrent_requests: 64    # Global in-flight cap across ALL endpoints.
+                                    # Rule of thumb: num_endpoints × desired_queue_depth
+                                    # e.g. 12 endpoints × 16 = 192. Default 64 suits small tests.
     timeout: 300                    # Per-request timeout (seconds)
     max_retries: 3                  # Retry count on failure
     retry_backoff: 2.0              # Exponential back-off base

@@ -35,6 +35,9 @@ writer:
     base_name: model_cards
 
 client:
+    # Global in-flight request cap across ALL endpoints combined.
+    # Rule of thumb for production: num_endpoints × desired_queue_depth
+    # e.g. 12 endpoints × 16 = 192. For this test run 64 is fine.
     max_concurrent_requests: 64
     timeout: 300
     max_retries: 3

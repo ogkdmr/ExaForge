@@ -50,10 +50,15 @@ def run(
         ..., "--config", "-c", help="Path to YAML config file"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
+    limit: int = typer.Option(
+        0, "--limit", "-n", help="Process at most N items (0 = no limit). Overrides max_items in config."
+    ),
 ) -> None:
     """Run a full inference pipeline."""
     _setup_logging(verbose)
     cfg = ExaForgeConfig.from_yaml(config)
+    if limit > 0:
+        cfg.max_items = limit
 
     from exaforge.aegis_bridge import get_endpoint_pool
     from exaforge.monitor import Monitor

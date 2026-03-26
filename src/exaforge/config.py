@@ -205,3 +205,7 @@ class ExaForgeConfig(BaseConfig):
     client: ClientConfig = Field(default_factory=ClientConfig)
     monitor: MonitorConfig = Field(default_factory=MonitorConfig)
     checkpoint: CheckpointConfig = Field(default_factory=CheckpointConfig)
+    max_items: int = Field(
+        default=0,
+        description="Cap the number of items processed. 0 means no limit (process all).",
+    )

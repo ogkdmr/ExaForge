@@ -89,6 +89,11 @@ class Orchestrator:
         all_ids = [item.id for item in items]
         pending_ids = set(self.checkpoint.filter_pending(all_ids))
         pending_items = [it for it in items if it.id in pending_ids]
+
+        if self.config.max_items > 0:
+            pending_items = pending_items[: self.config.max_items]
+            logger.info("max_items=%d: capped to %d pending items", self.config.max_items, len(pending_items))
+
         self._total = len(pending_items)
         self.checkpoint.total_items = len(items)
 

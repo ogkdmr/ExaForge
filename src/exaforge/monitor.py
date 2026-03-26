@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections import defaultdict
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Any, Optional
 
 from exaforge.config import MonitorConfig
@@ -27,9 +29,21 @@ class Monitor:
         Monitor settings (log file, progress interval, Rich toggle).
     total : int
         Total number of items to process.
+    concurrency : int
+        Unused — kept for API compatibility.
+    endpoint_urls : list[str]
+        URLs of all vLLM endpoints in the pool. Used to compute
+        per-endpoint and per-node throughput rates. If empty these
+        metrics are omitted.
     """
 
-    def __init__(self, config: MonitorConfig, total: int = 0) -> None:
+    def __init__(
+        self,
+        config: MonitorConfig,
+        total: int = 0,
+        concurrency: int = 0,
+        endpoint_urls: Optional[list[str]] = None,
+    ) -> None:
         self.config = config
         self.total = total
         self._completed = 0
@@ -38,6 +52,14 @@ class Monitor:
         self._start_time = time.monotonic()
         self._last_report = 0.0
         self._log_handle: Optional[Any] = None
+
+        # Per-endpoint completion counters (URL → count)
+        self._endpoint_completions: dict[str, int] = defaultdict(int)
+
+        # Derive node set from hostnames (http://host:port → host)
+        urls = endpoint_urls or []
+        self._num_endpoints: int = len(urls)
+        self._num_nodes: int = len({urlparse(u).hostname for u in urls if u})
 
         self._progress: Optional[Any] = None
         self._task_id: Optional[Any] = None
@@ -82,12 +104,19 @@ class Monitor:
     # ------------------------------------------------------------------
 
     def on_progress(
-        self, completed: int, total: int, item_id: str, latency: float
+        self,
+        completed: int,
+        total: int,
+        item_id: str,
+        latency: float,
+        endpoint_url: str = "",
     ) -> None:
         """Called by the orchestrator after each item completes."""
         self._completed = completed
         self.total = total
         self._latencies.append(latency)
+        if endpoint_url:
+            self._endpoint_completions[endpoint_url] += 1
 
         if self._progress is not None and self._task_id is not None:
             throughput = self._throughput_str()
@@ -117,33 +146,75 @@ class Monitor:
         avg_lat = (
             sum(self._latencies) / len(self._latencies)
             if self._latencies
-            else 0
+            else 0.0
         )
+        rates = self._throughput_rates()
+        throughput_parts = [
+            f"{rates['per_min']:.1f} items/min ({rates['per_s']:.2f}/s) global",
+        ]
+        if self._num_endpoints:
+            throughput_parts.append(
+                f"{rates['per_endpoint_per_min']:.2f}/min per endpoint"
+                f" ({self._num_endpoints} endpoints)"
+            )
+        if self._num_nodes:
+            throughput_parts.append(
+                f"{rates['per_node_per_min']:.2f}/min per node"
+                f" ({self._num_nodes} nodes)"
+            )
         msg = (
             f"Progress: {self._completed}/{self.total} "
-            f"({self._throughput_str()}) | "
-            f"failed: {self._failed} | "
-            f"avg latency: {avg_lat:.2f}s | "
-            f"elapsed: {elapsed:.0f}s"
+            f"| {' | '.join(throughput_parts)} "
+            f"| failed: {self._failed} "
+            f"| avg latency: {avg_lat:.2f}s "
+            f"| elapsed: {elapsed:.0f}s"
         )
         logger.info(msg)
-        self._log_event(
-            "progress",
-            {
-                "completed": self._completed,
-                "total": self.total,
-                "failed": self._failed,
-                "avg_latency": round(avg_lat, 3),
-                "elapsed": round(elapsed, 1),
-            },
-        )
+        log_data: dict = {
+            "completed": self._completed,
+            "total": self.total,
+            "failed": self._failed,
+            "avg_latency_s": round(avg_lat, 3),
+            "elapsed_s": round(elapsed, 1),
+            "throughput_per_s": round(rates["per_s"], 3),
+            "throughput_per_min": round(rates["per_min"], 2),
+        }
+        if self._num_endpoints:
+            log_data["num_endpoints"] = self._num_endpoints
+            log_data["throughput_per_endpoint_per_min"] = round(rates["per_endpoint_per_min"], 3)
+        if self._num_nodes:
+            log_data["num_nodes"] = self._num_nodes
+            log_data["throughput_per_node_per_min"] = round(rates["per_node_per_min"], 3)
+        self._log_event("progress", log_data)
+
+    def _throughput_rates(self) -> dict[str, float]:
+        """Return a dict of throughput rates (all in items/min and items/s)."""
+        elapsed = time.monotonic() - self._start_time
+        if elapsed <= 0 or self._completed == 0:
+            return {
+                "per_s": 0.0,
+                "per_min": 0.0,
+                "per_endpoint_per_min": 0.0,
+                "per_node_per_min": 0.0,
+            }
+        per_s = self._completed / elapsed
+        per_min = per_s * 60
+        return {
+            "per_s": per_s,
+            "per_min": per_min,
+            "per_endpoint_per_min": per_min / self._num_endpoints if self._num_endpoints else 0.0,
+            "per_node_per_min": per_min / self._num_nodes if self._num_nodes else 0.0,
+        }
 
     def _throughput_str(self) -> str:
-        elapsed = time.monotonic() - self._start_time
-        if elapsed <= 0:
-            return "0.0 items/s"
-        rate = self._completed / elapsed
-        return f"{rate:.1f} items/s"
+        """Compact throughput string for the Rich progress bar."""
+        rates = self._throughput_rates()
+        parts = [f"{rates['per_min']:.1f}/min ({rates['per_s']:.2f}/s) global"]
+        if self._num_endpoints:
+            parts.append(f"{rates['per_endpoint_per_min']:.2f}/min·ep")
+        if self._num_nodes:
+            parts.append(f"{rates['per_node_per_min']:.2f}/min·node")
+        return " | ".join(parts)
 
     def _log_event(self, event: str, data: dict) -> None:
         if self._log_handle is not None:
@@ -167,14 +238,23 @@ class Monitor:
             if self._latencies
             else 0.0
         )
-        return {
+        rates = self._throughput_rates()
+        result: dict[str, Any] = {
             "completed": self._completed,
             "failed": self._failed,
             "total": self.total,
             "elapsed_seconds": round(elapsed, 2),
-            "avg_latency": round(avg_lat, 3),
-            "throughput": self._throughput_str(),
+            "avg_latency_s": round(avg_lat, 3),
+            "throughput_per_s": round(rates["per_s"], 3),
+            "throughput_per_min": round(rates["per_min"], 2),
         }
+        if self._num_endpoints:
+            result["num_endpoints"] = self._num_endpoints
+            result["throughput_per_endpoint_per_min"] = round(rates["per_endpoint_per_min"], 3)
+        if self._num_nodes:
+            result["num_nodes"] = self._num_nodes
+            result["throughput_per_node_per_min"] = round(rates["per_node_per_min"], 3)
+        return result
 
     def close(self) -> None:
         """Stop the progress bar and close the log file."""

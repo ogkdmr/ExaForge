@@ -17,7 +17,7 @@ models:
     download_weights: false
     extra_vllm_args:
       - --max-model-len
-      - "4096"
+      - "16384" # this should fit the full paper and the ~4k token paper card.
 
 wait: true
 bench: false

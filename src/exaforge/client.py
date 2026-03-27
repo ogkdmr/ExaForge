@@ -39,8 +39,8 @@ class ChatRequest:
     top_p : float
         Nucleus sampling threshold.
     model : str
-        Model identifier passed in the request body.  vLLM typically
-        ignores this but it is required by the OpenAI API schema.
+        Model identifier passed in the request body.  Must match the
+        model name vLLM was started with (e.g. ``openai/gpt-oss-120b``).
     """
 
     messages: list[dict[str, str]]

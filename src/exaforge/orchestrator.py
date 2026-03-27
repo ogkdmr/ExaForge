@@ -177,6 +177,7 @@ class Orchestrator:
         task_cfg = self.config.task
         request = ChatRequest(
             messages=messages,
+            model=self.config.client.model,
             temperature=getattr(task_cfg, "temperature", 0.7),
             max_tokens=getattr(task_cfg, "max_tokens", 2000),
             top_p=getattr(task_cfg, "top_p", 1.0),

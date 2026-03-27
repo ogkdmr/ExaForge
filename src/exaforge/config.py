@@ -70,6 +70,7 @@ class AegisConfig(BaseConfig):
 class ClientConfig(BaseConfig):
     """Settings for the async HTTP client that talks to vLLM endpoints."""
 
+    model: str = "default"
     max_concurrent_requests: int = 64
     timeout: float = 300.0
     max_retries: int = 3

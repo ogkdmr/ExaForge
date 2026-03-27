@@ -46,3 +46,14 @@ def endpoints_file(tmp_dir: Path) -> Path:
     p = tmp_dir / "aegis_endpoints.txt"
     p.write_text("node1.hsn.cm.aurora.alcf.anl.gov:8000\nnode2.hsn.cm.aurora.alcf.anl.gov:8000\n")
     return p
+
+
+@pytest.fixture()
+def large_sample_texts(tmp_dir: Path) -> list[Path]:
+    """Create 20 sample .txt files — useful for testing multi-batch behaviour."""
+    files = []
+    for i in range(20):
+        p = tmp_dir / f"doc_{i:03d}.txt"
+        p.write_text(f"Full text of large-corpus document {i}.\n")
+        files.append(p)
+    return files

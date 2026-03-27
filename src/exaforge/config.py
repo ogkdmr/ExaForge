@@ -209,3 +209,11 @@ class ExaForgeConfig(BaseConfig):
         default=0,
         description="Cap the number of items processed. 0 means no limit (process all).",
     )
+    batch_size: int = Field(
+        default=1000,
+        description=(
+            "Number of items loaded from disk and held in memory at one time. "
+            "Each batch is fully processed and written before the next is loaded. "
+            "Controls memory footprint independently of max_concurrent_requests."
+        ),
+    )

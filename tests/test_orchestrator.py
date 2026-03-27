@@ -155,9 +155,15 @@ class TestOrchestrator:
         progress_calls: list[tuple] = []
 
         def on_progress(
-            completed: int, total: int, item_id: str, latency: float
+            completed: int,
+            total: int,
+            item_id: str,
+            latency: float,
+            endpoint_url: str = "",
         ) -> None:
-            progress_calls.append((completed, total, item_id, latency))
+            progress_calls.append(
+                (completed, total, item_id, latency, endpoint_url)
+            )
 
         cfg = _config(tmp_dir, input_dir=sample_texts[0].parent)
         orch = Orchestrator(cfg, _pool(), on_progress=on_progress)
@@ -172,3 +178,97 @@ class TestOrchestrator:
         summary = await orch.run()
         assert summary["total"] == 0
         assert summary["completed"] == 0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_batch_processing_completes_all(
+        self, tmp_dir: Path, large_sample_texts: list[Path]
+    ) -> None:
+        """Items spread across multiple batches are all processed."""
+        respx.post("http://node1:8000/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=_chat_ok("ok"))
+        )
+
+        cfg = _config(tmp_dir, input_dir=large_sample_texts[0].parent)
+        cfg = cfg.model_copy(update={"batch_size": 7})  # 20 items → 3 batches
+        orch = Orchestrator(cfg, _pool())
+        summary = await orch.run()
+
+        assert summary["total"] == 20
+        assert summary["completed"] == 20
+        assert summary["failed"] == 0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_batch_size_1_processes_all(
+        self, tmp_dir: Path, large_sample_texts: list[Path]
+    ) -> None:
+        """Degenerate batch_size=1 still produces correct results."""
+        respx.post("http://node1:8000/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=_chat_ok("ok"))
+        )
+
+        cfg = _config(tmp_dir, input_dir=large_sample_texts[0].parent)
+        cfg = cfg.model_copy(update={"batch_size": 1})
+        orch = Orchestrator(cfg, _pool())
+        summary = await orch.run()
+
+        assert summary["completed"] == 20
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_batch_larger_than_dataset(
+        self, tmp_dir: Path, sample_texts: list[Path]
+    ) -> None:
+        """batch_size > total items still works correctly (single batch)."""
+        respx.post("http://node1:8000/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=_chat_ok("ok"))
+        )
+
+        cfg = _config(tmp_dir, input_dir=sample_texts[0].parent)
+        cfg = cfg.model_copy(update={"batch_size": 10000})
+        orch = Orchestrator(cfg, _pool())
+        summary = await orch.run()
+
+        assert summary["completed"] == 5
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_max_items_respected_across_batches(
+        self, tmp_dir: Path, large_sample_texts: list[Path]
+    ) -> None:
+        """max_items cap applies before batching, not per-batch."""
+        respx.post("http://node1:8000/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=_chat_ok("ok"))
+        )
+
+        cfg = _config(tmp_dir, input_dir=large_sample_texts[0].parent)
+        cfg = cfg.model_copy(update={"max_items": 9, "batch_size": 4})
+        orch = Orchestrator(cfg, _pool())
+        summary = await orch.run()
+
+        assert summary["total"] == 9
+        assert summary["completed"] == 9
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_checkpoint_across_batches(
+        self, tmp_dir: Path, large_sample_texts: list[Path]
+    ) -> None:
+        """Checkpoint is saved after each batch; a second run skips them."""
+        respx.post("http://node1:8000/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=_chat_ok("ok"))
+        )
+
+        cfg = _config(tmp_dir, input_dir=large_sample_texts[0].parent)
+        cfg = cfg.model_copy(update={"batch_size": 6})
+
+        orch1 = Orchestrator(cfg, _pool())
+        s1 = await orch1.run()
+        assert s1["completed"] == 20
+
+        # Second run — all checkpointed
+        orch2 = Orchestrator(cfg, _pool())
+        s2 = await orch2.run()
+        assert s2["completed"] == 0
+        assert s2["total"] == 0

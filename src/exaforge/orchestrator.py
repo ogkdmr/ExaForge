@@ -42,8 +42,8 @@ class Orchestrator:
         Pre-initialised endpoint pool (caller is responsible for
         obtaining it, e.g. from Aegis bridge or a file).
     on_progress : callable, optional
-        Callback ``(completed, total, item_id, latency)`` invoked
-        after each item completes.  Used by the monitor.
+        Callback ``(completed, total, item_id, latency, endpoint_url)``
+        invoked after each item completes.  Used by the monitor.
     """
 
     def __init__(
@@ -51,7 +51,7 @@ class Orchestrator:
         config: ExaForgeConfig,
         pool: EndpointPool,
         on_progress: Optional[
-            Callable[[int, int, str, float], Any]
+            Callable[[int, int, str, float, str], Any]
         ] = None,
     ) -> None:
         self.config = config
@@ -74,7 +74,19 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     async def run(self) -> dict[str, Any]:
-        """Execute the full pipeline.
+        """Execute the full pipeline in a streaming batch loop.
+
+        Memory footprint is bounded to ``config.batch_size`` items at a
+        time regardless of total dataset size:
+
+        1. **Scan** — discover item IDs (cheap directory listing, no I/O).
+        2. **Filter** — remove already-completed items via checkpoint.
+        3. **Cap** — honour ``max_items``.
+        4. **Batch loop** — for each slice of ``batch_size`` IDs:
+              a. Load only those files from disk.
+              b. Dispatch all items in the batch concurrently.
+              c. Write outputs and save checkpoint.
+              d. Release the batch (memory freed before next batch).
 
         Returns
         -------
@@ -83,25 +95,27 @@ class Orchestrator:
         """
         self._start_time = time.monotonic()
 
-        items = self.reader.read()
-        logger.info("Read %d input items", len(items))
+        all_ids = self.reader.scan()
+        logger.info("Scanned %d input items", len(all_ids))
 
-        all_ids = [item.id for item in items]
-        pending_ids = set(self.checkpoint.filter_pending(all_ids))
-        pending_items = [it for it in items if it.id in pending_ids]
+        pending_ids = self.checkpoint.filter_pending(all_ids)
 
         if self.config.max_items > 0:
-            pending_items = pending_items[: self.config.max_items]
-            logger.info("max_items=%d: capped to %d pending items", self.config.max_items, len(pending_items))
+            pending_ids = pending_ids[: self.config.max_items]
+            logger.info(
+                "max_items=%d: capped to %d pending items",
+                self.config.max_items,
+                len(pending_ids),
+            )
 
-        self._total = len(pending_items)
-        self.checkpoint.total_items = len(items)
+        self._total = len(pending_ids)
+        self.checkpoint.total_items = len(all_ids)
 
-        if not pending_items:
+        if not pending_ids:
             logger.info("All items already completed — nothing to do")
             return self._summary()
 
-        skipped = len(items) - len(pending_items)
+        skipped = len(all_ids) - self._total
         if skipped:
             logger.info(
                 "Resuming: %d already done, %d pending",
@@ -109,8 +123,37 @@ class Orchestrator:
                 self._total,
             )
 
+        batch_size = self.config.batch_size
+        num_batches = (len(pending_ids) + batch_size - 1) // batch_size
+        logger.info(
+            "Processing %d items in %d batch(es) of up to %d",
+            self._total,
+            num_batches,
+            batch_size,
+        )
+
         try:
-            await self._process_items(pending_items)
+            for batch_num, start in enumerate(
+                range(0, len(pending_ids), batch_size), start=1
+            ):
+                batch_ids = pending_ids[start : start + batch_size]
+                logger.info(
+                    "Batch %d/%d: loading %d items …",
+                    batch_num,
+                    num_batches,
+                    len(batch_ids),
+                )
+                batch_items = self.reader.read_by_ids(set(batch_ids))
+                await self._process_items(batch_items)
+                self.checkpoint.save()
+                logger.info(
+                    "Batch %d/%d done. Progress: %d/%d completed, %d failed",
+                    batch_num,
+                    num_batches,
+                    self._completed,
+                    self._total,
+                    self._failed,
+                )
         finally:
             self.writer.close()
             self.checkpoint.save()

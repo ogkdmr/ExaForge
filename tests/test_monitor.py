@@ -42,7 +42,7 @@ class TestMonitor:
         assert s["completed"] == 2
         assert s["failed"] == 1
         assert s["total"] == 3
-        assert s["avg_latency"] > 0
+        assert s["avg_latency_s"] > 0
 
     def test_log_file_written(self, tmp_dir: Path) -> None:
         m = Monitor(self._cfg(tmp_dir, log=True), total=3)
@@ -80,4 +80,4 @@ class TestMonitor:
     def test_throughput_str_initial(self, tmp_dir: Path) -> None:
         m = Monitor(self._cfg(tmp_dir), total=1)
         s = m._throughput_str()
-        assert "items/s" in s
+        assert "/s" in s

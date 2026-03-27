@@ -68,6 +68,71 @@ class TestTextDirectoryReader:
         items = TextDirectoryReader(cfg).read()
         assert items == []
 
+    def test_scan_returns_ids_only(self, sample_texts: list[Path]) -> None:
+        cfg = TextDirectoryReaderConfig(
+            input_dir=sample_texts[0].parent,
+            glob_patterns=["*.txt"],
+        )
+        reader = TextDirectoryReader(cfg)
+        ids = reader.scan()
+        assert len(ids) == 5
+        assert all(isinstance(i, str) for i in ids)
+        assert "paper_000" in ids
+
+    def test_read_by_ids_loads_subset(
+        self, sample_texts: list[Path]
+    ) -> None:
+        cfg = TextDirectoryReaderConfig(
+            input_dir=sample_texts[0].parent,
+            glob_patterns=["*.txt"],
+        )
+        reader = TextDirectoryReader(cfg)
+        items = reader.read_by_ids({"paper_001", "paper_003"})
+        assert len(items) == 2
+        ids = {it.id for it in items}
+        assert ids == {"paper_001", "paper_003"}
+        assert all(it.text for it in items)
+        assert all("source_file" in it.metadata for it in items)
+
+    def test_scan_then_read_by_ids_matches_full_read(
+        self, sample_texts: list[Path]
+    ) -> None:
+        cfg = TextDirectoryReaderConfig(
+            input_dir=sample_texts[0].parent,
+            glob_patterns=["*.txt"],
+        )
+        reader = TextDirectoryReader(cfg)
+        all_ids = set(reader.scan())
+        items_selective = reader.read_by_ids(all_ids)
+        items_full = TextDirectoryReader(cfg).read()
+        assert {it.id for it in items_selective} == {it.id for it in items_full}
+        for sel in items_selective:
+            full = next(f for f in items_full if f.id == sel.id)
+            assert sel.text == full.text
+
+    def test_read_by_ids_empty_set(
+        self, sample_texts: list[Path]
+    ) -> None:
+        cfg = TextDirectoryReaderConfig(
+            input_dir=sample_texts[0].parent,
+            glob_patterns=["*.txt"],
+        )
+        items = TextDirectoryReader(cfg).read_by_ids(set())
+        assert items == []
+
+    def test_discovery_is_cached(
+        self, sample_texts: list[Path]
+    ) -> None:
+        cfg = TextDirectoryReaderConfig(
+            input_dir=sample_texts[0].parent,
+            glob_patterns=["*.txt"],
+        )
+        reader = TextDirectoryReader(cfg)
+        ids1 = reader.scan()
+        ids2 = reader.scan()
+        assert ids1 == ids2
+        assert reader._path_map is not None
+
 
 class TestJsonlReader:
     def test_reads_all_records(self, sample_jsonl: Path) -> None:

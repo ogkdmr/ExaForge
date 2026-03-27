@@ -34,6 +34,12 @@ class BaseReader(ABC):
     A reader is responsible for bulk-loading input data from disk into a
     list of :class:`InputItem` objects.  Implementations should favour
     few, large I/O operations over many small ones (important on Lustre).
+
+    Subclasses *may* override :meth:`scan` and :meth:`read_by_ids` to
+    enable a two-phase workflow where the orchestrator discovers IDs
+    cheaply, filters via the checkpoint, and only then loads the items
+    that will actually be processed.  The default implementations fall
+    back to :meth:`read`.
     """
 
     @abstractmethod
@@ -46,3 +52,21 @@ class BaseReader(ABC):
             Every item that should be processed by the pipeline.
         """
         ...
+
+    def scan(self) -> list[str]:
+        """Return item IDs without loading content.
+
+        The default implementation calls :meth:`read` and extracts IDs.
+        Subclasses that can list items cheaply (e.g. a directory listing
+        without reading file contents) should override this.
+        """
+        return [item.id for item in self.read()]
+
+    def read_by_ids(self, ids: set[str]) -> list[InputItem]:
+        """Load only items whose ID is in *ids*.
+
+        The default implementation calls :meth:`read` and filters.
+        Subclasses should override when selective loading is cheaper
+        than a full read (e.g. reading 128 files vs. 58 000).
+        """
+        return [item for item in self.read() if item.id in ids]

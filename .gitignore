@@ -13,4 +13,6 @@ build/
 htmlcov/
 .coverage
 
+notes/
 .cursor
+

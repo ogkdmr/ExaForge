@@ -39,6 +39,21 @@ class TestEndpointPool:
         pool = EndpointPool.from_file(p)
         assert len(pool.endpoints) == 2
 
+    def test_from_file_multi_port_same_host(self, tmp_dir: Path) -> None:
+        """Packed multi-instance endpoints (multiple ports per host) are all loaded."""
+        p = tmp_dir / "ep.txt"
+        p.write_text(
+            "nodeA:8000\nnodeA:8001\nnodeA:8002\n"
+            "nodeB:8000\nnodeB:8001\nnodeB:8002\n"
+        )
+        pool = EndpointPool.from_file(p)
+        assert len(pool.endpoints) == 6
+        urls = {ep.url for ep in pool.endpoints}
+        assert urls == {
+            "http://nodeA:8000", "http://nodeA:8001", "http://nodeA:8002",
+            "http://nodeB:8000", "http://nodeB:8001", "http://nodeB:8002",
+        }
+
 
 class TestSelection:
     def _pool(self) -> EndpointPool:

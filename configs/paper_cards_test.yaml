@@ -24,19 +24,19 @@ task:
 
 reader:
     name: text_directory
-    input_dir: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Parsed
+    input_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_papers
     glob_patterns:
         - "*.mmd"
 
 writer:
     name: jsonl
-    output_dir: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Model-Cards/cards
+    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_model_cards
     buffer_size: 8
     base_name: model_cards
 
 client:
-    # Must match the model name vLLM was started with.
-    model: openai/gpt-oss-120b
+    # Must match vLLM's served model id (same as `model:` in the Aegis config), not the on-disk hub folder name.
+    model: meta-llama/Llama-3.1-8B-Instruct
     # Global in-flight request cap across ALL endpoints combined.
     # Rule of thumb for production: num_endpoints × desired_queue_depth
     # e.g. 12 endpoints × 16 = 192. For this test run 64 is fine.
@@ -47,13 +47,13 @@ client:
     load_balance_strategy: round_robin
 
 monitor:
-    log_file: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Model-Cards/run.log
+    log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_model_cards/run.log
     progress_interval: 30
     enable_rich: true
 
 checkpoint:
     enabled: true
-    checkpoint_file: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Model-Cards/checkpoint.json
+    checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_model_cards/checkpoint.json
 
 max_items: 128  # test mode — remove or set to 0 to process all papers
 

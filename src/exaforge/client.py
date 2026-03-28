@@ -195,7 +195,7 @@ class InferenceClient:
             text = (
                 data.get("choices", [{}])[0]
                 .get("message", {})
-                .get("content", "")
+                .get("content") or ""
             )
             return ChatResponse(
                 text=text,

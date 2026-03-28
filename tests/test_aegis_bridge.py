@@ -84,7 +84,10 @@ class TestGetEndpointPool:
         aegis_config_mod = types.ModuleType("aegis.config")
         aegis_scheduler_mod = types.ModuleType("aegis.scheduler")
 
+        mock_make_run_dir = MagicMock(return_value=tmp_dir)
+
         aegis_config_mod.load_config = mock_load
+        aegis_scheduler_mod.make_run_dir = mock_make_run_dir
         aegis_scheduler_mod.generate_pbs_script = mock_generate
         aegis_scheduler_mod.submit_job = mock_submit
         aegis_scheduler_mod.wait_for_endpoints = mock_wait

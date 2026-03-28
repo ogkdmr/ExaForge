@@ -65,6 +65,7 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     from aegis.config import load_config as load_aegis_config
     from aegis.scheduler import (
         generate_pbs_script,
+        make_run_dir,
         submit_job,
         wait_for_endpoints,
     )
@@ -78,13 +79,20 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     logger.info("Loading Aegis config from %s", aegis_config_path)
     aegis_cfg = load_aegis_config(aegis_config_path)
 
+    # Generate a timestamped run directory. Aegis writes all artifacts there.
+    # launcher.py will also create local_runs/aegis_endpoints.txt as a symlink,
+    # so ExaForge's config.endpoints_file (pointing to local_runs/) needs no change.
+    run_dir = make_run_dir(config.endpoints_file.parent.parent)  # ExaForge project root
+    aegis_cfg.endpoints_file = str(run_dir / "aegis_endpoints.txt")
+    logger.info("Run directory: %s", run_dir)
+
     logger.info("Generating PBS script")
-    script = generate_pbs_script(aegis_cfg)
+    script = generate_pbs_script(aegis_cfg, run_dir=run_dir)
     script = script.replace("#PBS -N aegis", "#PBS -N exaforge", 1)
 
     hf_token = aegis_cfg.hf_token
     logger.info("Submitting PBS job")
-    job_id = submit_job(script, hf_token=hf_token)
+    job_id = submit_job(script, hf_token=hf_token, run_dir=run_dir)
 
     endpoints_file = str(config.endpoints_file)
     logger.info("Waiting for endpoints (job %s)", job_id)

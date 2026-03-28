@@ -18,7 +18,7 @@ task:
     mode: model_card                # model_card | agent_card | data_card
     system_prompt: >-
         You are a helpful assistant specialised in analysing
-        scientific texts for bioinformatics workflows.
+        scientific texts for bioinformatics workflows.  
     temperature: 0.0
     max_tokens: 4000 # paper should not be longer than 
 

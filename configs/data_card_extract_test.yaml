@@ -1,0 +1,64 @@
+# ExaForge — Paper card extraction example
+#
+# Extracts model cards from a directory of parsed scientific papers
+# using vLLM instances spawned by Aegis on Aurora.
+#
+# Usage:
+#   exaforge run --config configs/paper_cards.yaml
+
+aegis:
+    # Path to an Aegis YAML config file (required when auto_launch is true)
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml
+    auto_launch: true
+    wait_for_endpoints: true
+    endpoints_file: /home/ogokdemir/ExaForge/aegis_endpoints.txt
+
+task:
+    name: card_extraction
+    mode: data_card                # model_card | agent_card | data_card
+    system_prompt: >-
+        You are a helpful assistant specialised in analysing
+        scientific texts for bioinformatics workflows.  
+    temperature: 0.0
+    max_tokens: 4000 # paper should not be longer than 
+
+reader:
+    name: text_directory
+    input_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_papers
+    glob_patterns:
+        - "*.mmd"
+
+writer:
+    name: jsonl
+    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards
+    buffer_size: 8
+    base_name: data_cards
+
+client:
+    # Must match vLLM's served model id (same as `model:` in the Aegis config), not the on-disk hub folder name.
+    model: meta-llama/Llama-3.1-8B-Instruct
+    # Global in-flight request cap across ALL endpoints combined.
+    # Rule of thumb for production: num_endpoints × desired_queue_depth
+    # e.g. 12 endpoints × 16 = 192. For this test run 64 is fine.
+    max_concurrent_requests: 16
+    timeout: 300
+    max_retries: 3
+    retry_backoff: 2.0
+    load_balance_strategy: round_robin
+
+monitor:
+    log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards/run.log
+    progress_interval: 30
+    enable_rich: true
+
+checkpoint:
+    enabled: true
+    checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards/checkpoint.json
+
+max_items: 128  # test mode — remove or set to 0 to process all papers
+
+# Number of items loaded from disk at one time.
+# Each batch is fully processed and flushed before the next is loaded.
+# Controls memory independently of max_concurrent_requests.
+# For production (58k papers, no max_items): set to 1000–2000 and remove max_items.
+batch_size: 64

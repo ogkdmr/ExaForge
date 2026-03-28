@@ -1,5 +1,6 @@
 port_start: 8000
 hf_home: /tmp/hf_home
+hf_token: <YOUR_HF_TOKEN>
 walltime: "01:00:00"
 account: ModCon
 queue: debug
@@ -10,14 +11,14 @@ aegis_env: /home/ogokdemir/.conda/envs/exaforge-env/
 
 
 models:
-  - model: openai/gpt-oss-120b
+  - model: meta-llama/Llama-3.1-8B-Instruct
     instances: 2
     tensor_parallel_size: 4
-    model_source: /flare/datasets/model-weights/hub/models--openai--gpt-oss-120b
+    model_source: /flare/datasets/model-weights/hub/models--meta-llama--Llama-3.1-8B-Instruct
     download_weights: false
     extra_vllm_args:
       - --max-model-len
-      - "16384" # this should fit the full paper and the ~4k token paper card.
+      - "65536" # this should fit the full paper and the ~4k token paper card.
 
 wait: true
 bench: false

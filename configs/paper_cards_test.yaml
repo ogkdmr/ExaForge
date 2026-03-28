@@ -40,7 +40,7 @@ client:
     # Global in-flight request cap across ALL endpoints combined.
     # Rule of thumb for production: num_endpoints × desired_queue_depth
     # e.g. 12 endpoints × 16 = 192. For this test run 64 is fine.
-    max_concurrent_requests: 64
+    max_concurrent_requests: 16
     timeout: 300
     max_retries: 3
     retry_backoff: 2.0
@@ -61,4 +61,4 @@ max_items: 128  # test mode — remove or set to 0 to process all papers
 # Each batch is fully processed and flushed before the next is loaded.
 # Controls memory independently of max_concurrent_requests.
 # For production (58k papers, no max_items): set to 1000–2000 and remove max_items.
-batch_size: 128
+batch_size: 64

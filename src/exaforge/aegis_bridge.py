@@ -88,6 +88,11 @@ def launch_aegis(config: AegisConfig) -> list[str]:
 
     endpoints_file = str(config.endpoints_file)
     logger.info("Waiting for endpoints (job %s)", job_id)
+    print(
+        "Waiting for vLLM instances to come online...",
+        file=sys.stdout,
+        flush=True,
+    )
 
     endpoints = wait_for_endpoints(
         endpoints_file=endpoints_file,

@@ -168,7 +168,37 @@ class JsonlReaderConfig(BaseConfig):
         return v.resolve()
 
 
-ReaderConfigs = Union[TextDirectoryReaderConfig, JsonlReaderConfig]
+class ZipTextReaderConfig(BaseConfig):
+    """Read text files from batched ZIP archives.
+
+    Produced by ``exaforge preprocess --format zip``.  When *stage_dir*
+    is set, archives are extracted to fast node-local storage before
+    reading (e.g. ``/tmp`` on Aurora).
+    """
+
+    name: Literal["zip_text"] = "zip_text"  # type: ignore[assignment]
+    input_dir: Path = Path(".")
+    glob_patterns: list[str] = Field(default=["*.zip"])
+    stage_dir: Optional[Path] = Field(
+        default=None,
+        description=(
+            "If set, archives are extracted here before reading. "
+            "Use a fast local filesystem (e.g. /tmp) for best performance."
+        ),
+    )
+
+    @field_validator("input_dir")
+    @classmethod
+    def _resolve_input(cls, v: Path) -> Path:
+        return v.resolve()
+
+    @field_validator("stage_dir")
+    @classmethod
+    def _resolve_stage(cls, v: Optional[Path]) -> Optional[Path]:
+        return v.resolve() if v is not None else None
+
+
+ReaderConfigs = Union[TextDirectoryReaderConfig, JsonlReaderConfig, ZipTextReaderConfig]
 
 
 # ---------------------------------------------------------------------------

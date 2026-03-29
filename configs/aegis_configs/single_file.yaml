@@ -12,13 +12,13 @@ aegis_env: /home/ogokdemir/.conda/envs/exaforge-env/
 models:
   - model: openai/gpt-oss-120b
     #PBS will request 64 / (12 / tensor_parallel_size) nodes on Aurora. Ensure divisibility.
-    instances: 96
+    instances: 384
     tensor_parallel_size: 4
     model_source: /flare/datasets/model-weights/hub/models--openai--gpt-oss-120b
     download_weights: false
     extra_vllm_args:
       - --max-model-len
-      - "65536" # this should fit the full paper and the ~4k token paper card.
+      - "96000" # this should fit the full paper and the ~4k token paper card.
 
 wait: true
 bench: false

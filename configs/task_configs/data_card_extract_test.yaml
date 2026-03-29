@@ -23,15 +23,15 @@ task:
     max_tokens: 4000 # paper should not be longer than 
 
 reader:
-    name: text_directory
-    input_dir: /lus/flare/projects/LUCID/ogokdemir/data/SC/SC-Parsed
-    glob_patterns:
-        - "*.mmd"
+    name: jsonl
+    input_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/batched
+    text_field: text
+    id_field: id
 
 writer:
     name: jsonl
     output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards
-    buffer_size: 8
+    buffer_size: 1536 # number of individual completed vLLM inferences to buffer before writing to disk.
     base_name: data_cards
 
 client:
@@ -40,7 +40,7 @@ client:
     # Global in-flight request cap across ALL endpoints combined.
     # Rule of thumb for production: num_endpoints × desired_queue_depth
     # e.g. 12 endpoints × 16 = 192. For this test run 64 is fine.
-    max_concurrent_requests: 1536 # 1536 = 96 (instances) * 16 (requests per instance)
+    max_concurrent_requests: 6144 # 384 (instances) * 16 (requests per instance)
     timeout: 300
     max_retries: 3
     retry_backoff: 2.0
@@ -48,7 +48,7 @@ client:
 
 monitor:
     log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards/run.log
-    progress_interval: 30
+    progress_interval: 30 #seconds
     enable_rich: true
 
 checkpoint:

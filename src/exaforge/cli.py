@@ -216,7 +216,7 @@ def preprocess(
     batch_size: int = typer.Option(
         1000,
         "--batch-size",
-        "-K",
+        "-b",
         help="Number of items per output shard",
     ),
     glob_patterns: Optional[List[str]] = typer.Option(
@@ -226,7 +226,7 @@ def preprocess(
         help="Glob pattern(s) for source files (repeatable). Default: '*.txt'",
     ),
     base_name: str = typer.Option(
-        "batch", "--base-name", "-b", help="Prefix for shard filenames"
+        "batch", "--base-name", "-n", help="Prefix for shard filenames"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:

@@ -108,8 +108,21 @@ aegis:
     config_path: /path/to/aegis_config.yaml  # Aegis YAML (required if auto_launch)
     auto_launch: true                         # Submit PBS job automatically
     wait_for_endpoints: true                  # Block until endpoints healthy
-    endpoints_file: aegis_endpoints.txt       # Path to endpoints file
+    local_runs_dir: local_runs               # Base dir for timestamped run directories
+    # endpoints_file: ...                    # See below
 ```
+
+**`endpoints_file` rules:**
+
+| `auto_launch` | `endpoints_file` | Behaviour |
+|---|---|---|
+| `true` | omitted *(recommended)* | Endpoints written to `local_runs/<timestamp>/aegis_endpoints.txt` automatically |
+| `true` | set | Used as-is; must match the `endpoints_file` in the Aegis YAML or ExaForge will error |
+| `false` | set | Read from this path (Aegis already ran separately) |
+| `false` | omitted | Error — ExaForge has no idea where to find the file |
+
+When using `auto_launch: true` you should also remove `endpoints_file` from the
+Aegis YAML — ExaForge overrides it to the run-specific path anyway.
 
 ### Task section
 

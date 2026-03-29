@@ -5,7 +5,6 @@ walltime: "01:00:00"
 account: ModCon
 queue: debug-scaling
 filesystems: flare:home
-endpoints_file: /home/ogokdemir/ExaForge/local_runs/aegis_endpoints.txt
 conda_env: /home/ogokdemir/Aegis/assets/condapacks/vllm_oss_conda_pack_01082026.tar.gz
 aegis_env: /home/ogokdemir/.conda/envs/exaforge-env/
 

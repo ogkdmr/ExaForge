@@ -36,6 +36,11 @@ class TestGetEndpointPool:
         with pytest.raises(FileNotFoundError):
             get_endpoint_pool(cfg)
 
+    def test_no_endpoints_file_without_auto_launch_raises(self) -> None:
+        cfg = AegisConfig(auto_launch=False, endpoints_file=None)
+        with pytest.raises(ValueError, match="endpoints_file"):
+            get_endpoint_pool(cfg)
+
     def test_auto_launch_without_aegis_raises(
         self, tmp_dir: Path
     ) -> None:
@@ -68,7 +73,7 @@ class TestGetEndpointPool:
         cfg = AegisConfig(
             auto_launch=True,
             config_path=aegis_yaml,
-            endpoints_file=endpoints_file,
+            local_runs_dir=tmp_dir,
         )
 
         mock_aegis_cfg = MagicMock()

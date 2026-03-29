@@ -125,6 +125,13 @@ def status(
 
     from exaforge.endpoints import EndpointPool
 
+    if cfg.aegis.endpoints_file is None:
+        console.print(
+            "[red]aegis.endpoints_file is not set in config. "
+            "Run with auto_launch or specify endpoints_file.[/red]"
+        )
+        raise typer.Exit(1)
+
     try:
         pool = EndpointPool.from_file(cfg.aegis.endpoints_file)
     except FileNotFoundError:

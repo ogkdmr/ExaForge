@@ -14,6 +14,9 @@ from typing import Literal, Optional, TypeVar, Union
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
+# Absolute path to the repository root (src/exaforge/config.py → ../../..)
+_REPO_ROOT: Path = Path(__file__).parents[2]
+
 T = TypeVar("T")
 PathLike = Union[str, Path]
 
@@ -60,7 +63,18 @@ class AegisConfig(BaseConfig):
     config_path: Optional[Path] = None
     auto_launch: bool = False
     wait_for_endpoints: bool = True
-    endpoints_file: Path = Path("aegis_endpoints.txt")
+    local_runs_dir: Path = _REPO_ROOT / "local_runs"
+    endpoints_file: Optional[Path] = Field(
+        default=None,
+        description=(
+            "Path to the Aegis endpoints file. "
+            "When auto_launch is true this can be omitted — ExaForge will "
+            "write endpoints to a timestamped sub-directory of local_runs_dir. "
+            "When auto_launch is false this must point to an existing file. "
+            "If set together with auto_launch and the Aegis config also "
+            "specifies endpoints_file, the two paths must match."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -102,6 +102,25 @@ class EndpointPool:
             health_interval=health_interval,
         )
 
+    @classmethod
+    def from_lines(
+        cls,
+        lines: list[str],
+        strategy: str = "round_robin",
+        health_interval: float = 30.0,
+    ) -> "EndpointPool":
+        """Create a pool from a list of ``host:port`` strings."""
+        endpoints = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            url = line if line.startswith("http") else f"http://{line}"
+            endpoints.append(Endpoint(url=url))
+        if not endpoints:
+            raise ValueError("No endpoints found in provided lines")
+        return cls(endpoints, strategy=strategy, health_interval=health_interval)
+
     # ------------------------------------------------------------------
     # Health checking
     # ------------------------------------------------------------------

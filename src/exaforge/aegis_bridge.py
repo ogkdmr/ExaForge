@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -65,7 +66,6 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     from aegis.config import load_config as load_aegis_config
     from aegis.scheduler import (
         generate_pbs_script,
-        make_run_dir,
         submit_job,
         wait_for_endpoints,
     )
@@ -79,12 +79,26 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     logger.info("Loading Aegis config from %s", aegis_config_path)
     aegis_cfg = load_aegis_config(aegis_config_path)
 
-    # Generate a timestamped run directory. Aegis writes all artifacts there.
-    # launcher.py will also create local_runs/aegis_endpoints.txt as a symlink,
-    # so ExaForge's config.endpoints_file (pointing to local_runs/) needs no change.
-    run_dir = make_run_dir(config.endpoints_file.parent.parent)  # ExaForge project root
-    aegis_cfg.endpoints_file = str(run_dir / "aegis_endpoints.txt")
+    # All run artifacts (PBS script, logs, endpoints file) go into a
+    # timestamped sub-directory of local_runs_dir.
+    run_dir = config.local_runs_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    run_endpoints_file = run_dir / "aegis_endpoints.txt"
     logger.info("Run directory: %s", run_dir)
+
+    # Validate consistency if user explicitly set endpoints_file.
+    if config.endpoints_file is not None:
+        aegis_raw = Path(aegis_cfg.endpoints_file) if getattr(aegis_cfg, "endpoints_file", None) else None
+        if aegis_raw is not None and aegis_raw.resolve() != config.endpoints_file.resolve():
+            raise ValueError(
+                f"endpoints_file mismatch between ExaForge config "
+                f"({config.endpoints_file}) and Aegis config ({aegis_raw}). "
+                "Set both to the same path, or omit endpoints_file from the "
+                "ExaForge config to use the run directory automatically."
+            )
+
+    # Always write to the run-specific path regardless of what Aegis config says.
+    aegis_cfg.endpoints_file = str(run_endpoints_file)
 
     logger.info("Generating PBS script")
     script = generate_pbs_script(aegis_cfg, run_dir=run_dir)
@@ -94,7 +108,6 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     logger.info("Submitting PBS job")
     job_id = submit_job(script, hf_token=hf_token, run_dir=run_dir)
 
-    endpoints_file = str(config.endpoints_file)
     logger.info("Waiting for endpoints (job %s)", job_id)
     print(
         "Waiting for vLLM instances to come online...",
@@ -103,7 +116,7 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     )
 
     endpoints = wait_for_endpoints(
-        endpoints_file=endpoints_file,
+        endpoints_file=str(run_endpoints_file),
         job_id=job_id,
     )
     logger.info("Aegis ready: %d endpoint(s)", len(endpoints))
@@ -129,7 +142,10 @@ def get_endpoint_pool(config: AegisConfig) -> EndpointPool:
     """
     if config.auto_launch:
         endpoints_lines = launch_aegis(config)
-        # The endpoints file has been written by Aegis; load from it
-        return EndpointPool.from_file(config.endpoints_file)
+        return EndpointPool.from_lines(endpoints_lines)
 
+    if config.endpoints_file is None:
+        raise ValueError(
+            "aegis.endpoints_file must be set when auto_launch is false"
+        )
     return EndpointPool.from_file(config.endpoints_file)

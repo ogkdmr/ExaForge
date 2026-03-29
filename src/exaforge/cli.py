@@ -228,6 +228,13 @@ def preprocess(
     base_name: str = typer.Option(
         "batch", "--base-name", "-n", help="Prefix for shard filenames"
     ),
+    deduplicate: bool = typer.Option(
+        False,
+        "--deduplicate",
+        "-d",
+        help="Deduplicate files",
+        show_default=True,
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Batch text files into JSONL shards or ZIP archives for fast I/O.
@@ -258,6 +265,7 @@ def preprocess(
             glob_patterns=glob_patterns,
             batch_size=batch_size,
             base_name=base_name,
+            deduplicate=deduplicate,
         )
     elif fmt == "zip":
         total = preprocess_to_zip(
@@ -266,6 +274,7 @@ def preprocess(
             glob_patterns=glob_patterns,
             batch_size=batch_size,
             base_name=base_name,
+            deduplicate=deduplicate,
         )
     else:
         console.print(f"[red]Unknown format: {fmt!r}. Use 'jsonl' or 'zip'.[/red]")

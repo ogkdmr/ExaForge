@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 def _discover_files(
     input_dir: Path,
     glob_patterns: list[str],
+    deduplicate: bool = False,
 ) -> list[Path]:
     print(f"Discovering files in {input_dir} with patterns {glob_patterns}",
     file=sys.stdout,
@@ -41,24 +42,28 @@ def _discover_files(
 
     print(f"Found {len(paths)} files", file=sys.stdout, flush=True)
 
-    seen: set[Path] = set()
-    unique: list[Path] = []
-    for p in paths:
-        if p not in seen and p.is_file():
-            seen.add(p)
-            unique.append(p)
+    if deduplicate:
+        print(f"Deduplicating files", file=sys.stdout, flush=True)
+        seen: set[Path] = set()
+        unique: list[Path] = []
+        for p in paths:
+            if p not in seen and p.is_file():
+                seen.add(p)
+                unique.append(p)
 
-    print(f"Removed {len(paths) - len(unique)} duplicate files", file=sys.stdout, flush=True)
-    print(f"Batching {len(unique)} unique files", file=sys.stdout, flush=True)
+        print(f"Removed {len(paths) - len(unique)} duplicate files", file=sys.stdout, flush=True)
+        print(f"Batching {len(unique)} unique files", file=sys.stdout, flush=True)
 
-    return unique
+        return unique
 
+    return paths
 
 def preprocess_to_jsonl(
     input_dir: Path,
     output_dir: Path,
     glob_patterns: list[str],
     batch_size: int = 1000,
+    deduplicate: bool = False,
     *,
     base_name: str = "batch",
 ) -> int:
@@ -82,7 +87,7 @@ def preprocess_to_jsonl(
     int
         Total number of files packed.
     """
-    files = _discover_files(input_dir, glob_patterns)
+    files = _discover_files(input_dir, glob_patterns, deduplicate)
     if not files:
         logger.warning("No files matched in %s", input_dir)
         return 0
@@ -131,6 +136,7 @@ def preprocess_to_zip(
     output_dir: Path,
     glob_patterns: list[str],
     batch_size: int = 1000,
+    deduplicate: bool = False,
     *,
     base_name: str = "batch",
 ) -> int:
@@ -158,7 +164,7 @@ def preprocess_to_zip(
     int
         Total number of files packed.
     """
-    files = _discover_files(input_dir, glob_patterns)
+    files = _discover_files(input_dir, glob_patterns, deduplicate)
     if not files:
         logger.warning("No files matched in %s", input_dir)
         return 0

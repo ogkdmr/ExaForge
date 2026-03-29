@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -65,7 +66,6 @@ def launch_aegis(config: AegisConfig) -> list[str]:
     from aegis.config import load_config as load_aegis_config
     from aegis.scheduler import (
         generate_pbs_script,
-        make_run_dir,
         submit_job,
         wait_for_endpoints,
     )
@@ -81,7 +81,8 @@ def launch_aegis(config: AegisConfig) -> list[str]:
 
     # All run artifacts (PBS script, logs, endpoints file) go into a
     # timestamped sub-directory of local_runs_dir.
-    run_dir = make_run_dir(config.local_runs_dir)
+    run_dir = config.local_runs_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir.mkdir(parents=True, exist_ok=True)
     run_endpoints_file = run_dir / "aegis_endpoints.txt"
     logger.info("Run directory: %s", run_dir)
 

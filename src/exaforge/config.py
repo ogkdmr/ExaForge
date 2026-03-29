@@ -14,6 +14,9 @@ from typing import Literal, Optional, TypeVar, Union
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
+# Absolute path to the repository root (src/exaforge/config.py → ../../..)
+_REPO_ROOT: Path = Path(__file__).parents[2]
+
 T = TypeVar("T")
 PathLike = Union[str, Path]
 
@@ -60,7 +63,7 @@ class AegisConfig(BaseConfig):
     config_path: Optional[Path] = None
     auto_launch: bool = False
     wait_for_endpoints: bool = True
-    local_runs_dir: Path = Path("local_runs")
+    local_runs_dir: Path = _REPO_ROOT / "local_runs"
     endpoints_file: Optional[Path] = Field(
         default=None,
         description=(

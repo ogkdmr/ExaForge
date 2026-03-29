@@ -9,6 +9,7 @@ import yaml
 
 from exaforge.config import (
     AegisConfig,
+    _REPO_ROOT,
     CardExtractionTaskConfig,
     CheckpointConfig,
     ClientConfig,
@@ -49,7 +50,7 @@ class TestSubConfigs:
         cfg = AegisConfig()
         assert cfg.auto_launch is False
         assert cfg.endpoints_file is None
-        assert cfg.local_runs_dir == Path("local_runs")
+        assert cfg.local_runs_dir == _REPO_ROOT / "local_runs"
 
     def test_client_defaults(self) -> None:
         cfg = ClientConfig()

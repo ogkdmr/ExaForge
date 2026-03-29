@@ -19,6 +19,7 @@ import logging
 import zipfile
 from pathlib import Path
 import sys
+from math import ceil
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -41,8 +42,12 @@ def _discover_files(
         paths.extend(input_dir.glob(pattern))
 
     print(f"Found {len(paths)} files", file=sys.stdout, flush=True)
-
-    if deduplicate:
+    
+    if not deduplicate:
+        print(f"Skipping deduplication for {len(paths)} files", file=sys.stdout, flush=True)
+        return paths
+    
+    else:
         print(f"Deduplicating files", file=sys.stdout, flush=True)
         seen: set[Path] = set()
         unique: list[Path] = []
@@ -56,7 +61,6 @@ def _discover_files(
 
         return unique
 
-    return paths
 
 def preprocess_to_jsonl(
     input_dir: Path,
@@ -97,7 +101,7 @@ def preprocess_to_jsonl(
     shard_idx = 0
     written = 0
 
-    for start in tqdm(range(0, total, batch_size), total=total, desc="Preprocessing to JSONL"):
+    for start in tqdm(range(0, total, batch_size), total=ceil(total / batch_size), desc="Preprocessing to JSONL"):
         batch = files[start : start + batch_size]
         shard_path = output_dir / f"{base_name}_{shard_idx:04d}.jsonl"
 
@@ -174,7 +178,7 @@ def preprocess_to_zip(
     shard_idx = 0
     written = 0
 
-    for start in tqdm(range(0, total, batch_size), total=total, desc="Preprocessing to ZIP"):
+    for start in tqdm(range(0, total, batch_size), total=ceil(total / batch_size), desc="Preprocessing to ZIP"):
         batch = files[start : start + batch_size]
         archive_path = output_dir / f"{base_name}_{shard_idx:04d}.zip"
 

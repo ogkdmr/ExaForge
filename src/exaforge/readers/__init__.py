@@ -8,23 +8,31 @@ from __future__ import annotations
 
 from typing import Union
 
-from exaforge.config import JsonlReaderConfig, ReaderConfigs, TextDirectoryReaderConfig
+from exaforge.config import (
+    JsonlReaderConfig,
+    ReaderConfigs,
+    TextDirectoryReaderConfig,
+    ZipTextReaderConfig,
+)
 
 from .base import BaseReader, InputItem
 from .jsonl import JsonlReader
 from .text_directory import TextDirectoryReader
+from .zip_text import ZipTextReader
 
 __all__ = [
     "BaseReader",
     "InputItem",
     "JsonlReader",
     "TextDirectoryReader",
+    "ZipTextReader",
     "get_reader",
 ]
 
 _STRATEGIES: dict[str, tuple[type, type[BaseReader]]] = {
     "text_directory": (TextDirectoryReaderConfig, TextDirectoryReader),
     "jsonl": (JsonlReaderConfig, JsonlReader),
+    "zip_text": (ZipTextReaderConfig, ZipTextReader),
 }
 
 

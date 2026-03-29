@@ -285,7 +285,7 @@ class TestPreprocessCommand:
                 "-o", str(out),
                 "-f", "jsonl",
                 "-g", "*.mmd",
-                "-K", "5",
+                "-b", "5",
             ],
         )
         assert result.exit_code == 0
@@ -304,12 +304,31 @@ class TestPreprocessCommand:
                 "-o", str(out),
                 "-f", "zip",
                 "-g", "*.mmd",
-                "-K", "5",
+                "-b", "5",
             ],
         )
         assert result.exit_code == 0
         assert "Preprocessed 12" in result.output
         assert len(list(out.glob("batch_*.zip"))) == 3
+
+    def test_preprocess_jsonl_multithreaded(
+        self, sample_mmd_dir: Path, tmp_dir: Path
+    ) -> None:
+        out = tmp_dir / "cli_jsonl_mt"
+        result = runner.invoke(
+            app,
+            [
+                "preprocess",
+                "-i", str(sample_mmd_dir),
+                "-o", str(out),
+                "-f", "jsonl",
+                "-g", "*.mmd",
+                "-b", "5",
+                "-w", "4",
+            ],
+        )
+        assert result.exit_code == 0
+        assert len(list(out.glob("batch_*.jsonl"))) == 3
 
     def test_preprocess_unknown_format(
         self, sample_mmd_dir: Path, tmp_dir: Path

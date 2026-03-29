@@ -6,6 +6,7 @@ Provides the ``exaforge`` console entry point with subcommands:
 * ``launch``  — launch Aegis endpoints only
 * ``status``  — show endpoint health
 * ``merge``   — merge shard JSONL files into one
+* ``preprocess`` — batch files into JSONL shards or ZIP archives
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -191,6 +192,106 @@ def merge(
     console.print(
         f"[green]Merged {len(shards)} shard(s), "
         f"{total_lines} records -> {output_file}[/green]"
+    )
+
+
+# ------------------------------------------------------------------
+# preprocess
+# ------------------------------------------------------------------
+
+@app.command()
+def preprocess(
+    input_dir: Path = typer.Option(
+        ..., "--input-dir", "-i", help="Directory of source text files"
+    ),
+    output_dir: Path = typer.Option(
+        ..., "--output-dir", "-o", help="Where to write preprocessed shards"
+    ),
+    fmt: str = typer.Option(
+        "jsonl",
+        "--format",
+        "-f",
+        help="Output format: 'jsonl' or 'zip'",
+    ),
+    batch_size: int = typer.Option(
+        1000,
+        "--batch-size",
+        "-b",
+        help="Number of items per output shard",
+    ),
+    glob_patterns: Optional[List[str]] = typer.Option(
+        None,
+        "--glob",
+        "-g",
+        help="Glob pattern(s) for source files (repeatable). Default: '*.txt'",
+    ),
+    base_name: str = typer.Option(
+        "batch", "--base-name", "-n", help="Prefix for shard filenames"
+    ),
+    deduplicate: bool = typer.Option(
+        False,
+        "--deduplicate",
+        "-d",
+        help="Deduplicate files",
+        show_default=True,
+    ),
+    workers: int = typer.Option(
+        1,
+        "--workers",
+        "-w",
+        help="Number of concurrent shard-writer threads",
+        show_default=True,
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Batch text files into JSONL shards or ZIP archives for fast I/O.
+
+    Converts a directory of many small files (e.g. 58k .mmd papers on
+    Lustre) into a handful of larger shards that are dramatically faster
+    to read at runtime.
+
+    Examples::
+
+        # Pack 58k .mmd files into JSONL shards of 2000 each
+        exaforge preprocess -i /data/papers -o /data/preprocessed -g '*.mmd' -K 2000
+
+        # Pack into ZIP archives for staging to /tmp
+        exaforge preprocess -i /data/papers -o /data/preprocessed -g '*.mmd' -f zip -K 2000
+    """
+    _setup_logging(verbose)
+
+    if glob_patterns is None:
+        glob_patterns = ["*.txt"]
+
+    from exaforge.preprocess import preprocess_to_jsonl, preprocess_to_zip
+
+    if fmt == "jsonl":
+        total = preprocess_to_jsonl(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            glob_patterns=glob_patterns,
+            batch_size=batch_size,
+            base_name=base_name,
+            deduplicate=deduplicate,
+            workers=workers,
+        )
+    elif fmt == "zip":
+        total = preprocess_to_zip(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            glob_patterns=glob_patterns,
+            batch_size=batch_size,
+            base_name=base_name,
+            deduplicate=deduplicate,
+            workers=workers,
+        )
+    else:
+        console.print(f"[red]Unknown format: {fmt!r}. Use 'jsonl' or 'zip'.[/red]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"[bold green]Preprocessed {total} file(s) into "
+        f"{fmt.upper()} shards in {output_dir}[/bold green]"
     )
 
 

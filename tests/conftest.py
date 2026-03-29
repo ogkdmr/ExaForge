@@ -57,3 +57,36 @@ def large_sample_texts(tmp_dir: Path) -> list[Path]:
         p.write_text(f"Full text of large-corpus document {i}.\n")
         files.append(p)
     return files
+
+
+@pytest.fixture()
+def sample_mmd_dir(tmp_dir: Path) -> Path:
+    """Create a directory with 12 .mmd files for preprocessing tests."""
+    mmd_dir = tmp_dir / "papers"
+    mmd_dir.mkdir()
+    for i in range(12):
+        p = mmd_dir / f"paper_{i:03d}.mmd"
+        p.write_text(f"# Paper {i}\n\nThis is the parsed markdown for paper {i}.\n")
+    return mmd_dir
+
+
+@pytest.fixture()
+def preprocessed_jsonl_dir(tmp_dir: Path, sample_mmd_dir: Path) -> Path:
+    """Run jsonl preprocessing on sample_mmd_dir and return the output dir."""
+    import zipfile
+
+    from exaforge.preprocess import preprocess_to_jsonl
+
+    out = tmp_dir / "preprocessed_jsonl"
+    preprocess_to_jsonl(sample_mmd_dir, out, ["*.mmd"], batch_size=5)
+    return out
+
+
+@pytest.fixture()
+def preprocessed_zip_dir(tmp_dir: Path, sample_mmd_dir: Path) -> Path:
+    """Run zip preprocessing on sample_mmd_dir and return the output dir."""
+    from exaforge.preprocess import preprocess_to_zip
+
+    out = tmp_dir / "preprocessed_zip"
+    preprocess_to_zip(sample_mmd_dir, out, ["*.mmd"], batch_size=5)
+    return out

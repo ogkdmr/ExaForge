@@ -19,6 +19,8 @@ all with Lustre-filesystem-aware I/O and built-in checkpointing.
 - **Lustre-aware I/O** — buffered JSONL writes, bulk reads, stripe tuning
   helpers, and atomic checkpointing designed for overwhelmed networked
   filesystems.
+- **Preprocessing** — CLI utility to pack large directories of small files into
+  batched JSONL shards before a run, drastically reducing Lustre metadata I/O.
 - **Checkpointing & resume** — interrupted jobs pick up where they left off.
 - **Monitoring** — Rich progress bars, throughput counters, error tracking,
   and structured JSONL log files.
@@ -159,6 +161,16 @@ reader:
     id_field: id        # JSON key for unique item IDs
 ```
 
+**ZIP archive** (`name: zip_text`):
+
+```yaml
+reader:
+    name: zip_text
+    input_dir: /lus/flare/projects/MyProject/preprocessed
+    glob_patterns: ["*.zip"]
+    stage_dir: /tmp     # Optional: extract archives here before reading
+```
+
 ### Writer section
 
 ```yaml
@@ -202,11 +214,55 @@ checkpoint:
 ## CLI reference
 
 ```
-exaforge run     --config <yaml>           Run a full inference pipeline
-exaforge launch  --config <yaml>           Launch Aegis endpoints only
-exaforge status  --config <yaml>           Show endpoint health + progress
-exaforge merge   <output_dir> [--output]   Merge shard JSONL files
+exaforge run        --config <yaml>              Run a full inference pipeline
+exaforge launch     --config <yaml>              Launch Aegis endpoints only
+exaforge status     --config <yaml>              Show endpoint health + progress
+exaforge merge      <output_dir> [--output]      Merge shard JSONL files
+exaforge preprocess --input-dir --output-dir     Pack files into JSONL/ZIP shards
 ```
+
+### Preprocessing large input directories
+
+When an input directory contains thousands of individual files (e.g. 58k `.mmd`
+papers), opening each file separately generates enormous Lustre metadata traffic —
+thousands of `stat`/`open`/`close` operations that serialise and saturate the
+metadata server. Preprocessing packs those files into a small number of large
+JSONL shards. At runtime, ExaForge opens ~30 shards instead of ~58 000 files,
+reducing metadata I/O by orders of magnitude.
+
+```bash
+# Pack 58k .mmd files into JSONL shards of 2000 items each, using 16 writer threads
+exaforge preprocess \
+    --input-dir  /lus/flare/projects/MyProject/papers \
+    --output-dir /lus/flare/projects/MyProject/preprocessed \
+    --glob       "*.mmd" \
+    --batch-size 2000 \
+    --workers    16
+
+# Then point the reader at the shards:
+# reader:
+#     name: jsonl
+#     input_dir: /lus/flare/projects/MyProject/preprocessed
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--input-dir` | `-i` | required | Source directory of text files |
+| `--output-dir` | `-o` | required | Where to write the shards |
+| `--format` | `-f` | `jsonl` | Output format: `jsonl` or `zip` |
+| `--batch-size` | `-b` | `1000` | Files packed per shard |
+| `--workers` | `-w` | `1` | Concurrent shard-writer threads |
+| `--glob` | `-g` | `*.txt` | Glob pattern(s) for source files (repeatable) |
+| `--base-name` | `-n` | `batch` | Shard filename prefix (`batch_0000.jsonl`) |
+| `--deduplicate` | `-d` | off | Remove duplicate paths before batching |
+
+Each JSONL shard line has the form:
+```json
+{"id": "<file_stem>", "text": "<file_contents>", "source_file": "<original_path>"}
+```
+
+The `jsonl` reader's `text_field` and `id_field` defaults (`text` / `id`) match
+this schema directly — no extra config needed.
 
 ### Examples
 
@@ -243,7 +299,8 @@ exaforge merge /lus/flare/projects/MyProject/output --output merged.jsonl
 | Module | Responsibility |
 |--------|---------------|
 | `config.py` | Pydantic config models with YAML serde |
-| `readers/` | Bulk-load input data (text files, JSONL) |
+| `preprocess.py` | Batch files into JSONL/ZIP shards for efficient Lustre I/O |
+| `readers/` | Bulk-load input data (text files, JSONL, ZIP archives) |
 | `writers/` | Buffered JSONL output with fsync |
 | `endpoints.py` | Load Aegis endpoints, health check, load balance |
 | `client.py` | Async HTTP client for OpenAI chat completions |

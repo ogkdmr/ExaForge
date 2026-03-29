@@ -18,6 +18,8 @@ import json
 import logging
 import zipfile
 from pathlib import Path
+import sys
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +28,18 @@ def _discover_files(
     input_dir: Path,
     glob_patterns: list[str],
 ) -> list[Path]:
+    print(f"Discovering files in {input_dir} with patterns {glob_patterns}",
+    file=sys.stdout,
+    flush=True)
     """Collect and deduplicate matching files in deterministic order."""
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
 
     paths: list[Path] = []
     for pattern in glob_patterns:
-        paths.extend(sorted(input_dir.glob(pattern)))
+        paths.extend(input_dir.glob(pattern))
+
+    print(f"Found {len(paths)} files", file=sys.stdout, flush=True)
 
     seen: set[Path] = set()
     unique: list[Path] = []
@@ -40,6 +47,9 @@ def _discover_files(
         if p not in seen and p.is_file():
             seen.add(p)
             unique.append(p)
+
+    print(f"Removed {len(paths) - len(unique)} duplicate files", file=sys.stdout, flush=True)
+    print(f"Batching {len(unique)} unique files", file=sys.stdout, flush=True)
 
     return unique
 
@@ -82,7 +92,7 @@ def preprocess_to_jsonl(
     shard_idx = 0
     written = 0
 
-    for start in range(0, total, batch_size):
+    for start in tqdm(range(0, total, batch_size), total=total, desc="Preprocessing to JSONL"):
         batch = files[start : start + batch_size]
         shard_path = output_dir / f"{base_name}_{shard_idx:04d}.jsonl"
 
@@ -158,7 +168,7 @@ def preprocess_to_zip(
     shard_idx = 0
     written = 0
 
-    for start in range(0, total, batch_size):
+    for start in tqdm(range(0, total, batch_size), total=total, desc="Preprocessing to ZIP"):
         batch = files[start : start + batch_size]
         archive_path = output_dir / f"{base_name}_{shard_idx:04d}.zip"
 

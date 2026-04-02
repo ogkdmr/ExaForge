@@ -11,23 +11,28 @@ from typing import Union
 from exaforge.config import (
     CardExtractionTaskConfig,
     GenerationTaskConfig,
+    QAGenerationTaskConfig,
     TaskConfigs,
 )
 
-from .base import BaseTask
+from .base import BaseTask, ItemSkipped
 from .card_extraction import CardExtractionTask
 from .generation import GenerationTask
+from .qa_generation import QAGenerationTask
 
 __all__ = [
     "BaseTask",
     "CardExtractionTask",
     "GenerationTask",
+    "ItemSkipped",
+    "QAGenerationTask",
     "get_task",
 ]
 
 _STRATEGIES: dict[str, tuple[type, type[BaseTask]]] = {
     "generation": (GenerationTaskConfig, GenerationTask),
     "card_extraction": (CardExtractionTaskConfig, CardExtractionTask),
+    "qa_generation": (QAGenerationTaskConfig, QAGenerationTask),
 }
 
 

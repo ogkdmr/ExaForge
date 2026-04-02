@@ -69,10 +69,12 @@ class Orchestrator:
 
         self._completed = 0
         self._failed = 0
-        self._skipped = 0
+        self._skipped_too_long = 0
+        self._skipped_too_short = 0
+        self._skipped_other = 0
         self._total = 0
         self._start_time = 0.0
-        self._skip_file: Optional[Path] = None
+        self._skip_files: dict[str, Path] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -152,12 +154,16 @@ class Orchestrator:
                 await self._process_items(batch_items)
                 self.checkpoint.save()
                 logger.info(
-                    "Batch %d/%d done. Progress: %d/%d completed, %d failed",
+                    "Batch %d/%d done. "
+                    "completed=%d/%d  failed=%d  "
+                    "skipped[too_short]=%d  skipped[too_long]=%d",
                     batch_num,
                     num_batches,
                     self._completed,
                     self._total,
                     self._failed,
+                    self._skipped_too_short,
+                    self._skipped_too_long,
                 )
         finally:
             self.writer.close()
@@ -175,20 +181,23 @@ class Orchestrator:
         tasks = [self._process_one(item) for item in items]
         await asyncio.gather(*tasks)
 
-    def _write_skipped(self, item: InputItem, reason: str) -> None:
-        """Append a skipped item to the skip file."""
-        if self._skip_file is None:
-            self._skip_file = (
-                Path(self.config.writer.output_dir) / "too-long.jsonl"
-            )
-            self._skip_file.parent.mkdir(parents=True, exist_ok=True)
+    def _write_skipped(
+        self, item: InputItem, reason: str, skip_type: str
+    ) -> None:
+        """Append a skipped item to the appropriate skip file."""
+        filename = f"{skip_type}.jsonl"
+        if skip_type not in self._skip_files:
+            path = Path(self.config.writer.output_dir) / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._skip_files[skip_type] = path
 
         entry = {
             "id": item.id,
+            "skip_type": skip_type,
             "reason": reason,
             **item.metadata,
         }
-        with open(self._skip_file, "a", encoding="utf-8") as fp:
+        with open(self._skip_files[skip_type], "a", encoding="utf-8") as fp:
             fp.write(json.dumps(entry, ensure_ascii=False) + "\n")
             fp.flush()
             os.fsync(fp.fileno())
@@ -198,10 +207,17 @@ class Orchestrator:
         try:
             messages = self.task.prepare_messages(item)
         except ItemSkipped as exc:
-            logger.info("Skipped %s: %s", item.id, exc.reason)
-            self._write_skipped(item, exc.reason)
+            logger.info(
+                "Skipped [%s] %s: %s", exc.skip_type, item.id, exc.reason
+            )
+            self._write_skipped(item, exc.reason, exc.skip_type)
             self.checkpoint.mark_done(item.id)
-            self._skipped += 1
+            if exc.skip_type == "too_long":
+                self._skipped_too_long += 1
+            elif exc.skip_type == "too_short":
+                self._skipped_too_short += 1
+            else:
+                self._skipped_other += 1
             return
 
         task_cfg = self.config.task
@@ -246,11 +262,19 @@ class Orchestrator:
 
     def _summary(self) -> dict[str, Any]:
         elapsed = time.monotonic() - self._start_time
+        total_skipped = (
+            self._skipped_too_long
+            + self._skipped_too_short
+            + self._skipped_other
+        )
         summary: dict[str, Any] = {
             "total": self._total,
             "completed": self._completed,
             "failed": self._failed,
-            "skipped": self._skipped,
+            "skipped_too_short": self._skipped_too_short,
+            "skipped_too_long": self._skipped_too_long,
+            "skipped_other": self._skipped_other,
+            "skipped_total": total_skipped,
             "elapsed_seconds": round(elapsed, 2),
             "items_per_second": round(
                 self._completed / elapsed, 2
@@ -258,6 +282,18 @@ class Orchestrator:
             if elapsed > 0
             else 0,
         }
-        if self._skip_file and self._skipped > 0:
-            summary["skip_file"] = str(self._skip_file)
+        if self._skip_files:
+            summary["skip_files"] = {
+                k: str(v) for k, v in self._skip_files.items()
+            }
+        logger.info(
+            "Run complete. completed=%d  failed=%d  "
+            "skipped[too_short]=%d  skipped[too_long]=%d  "
+            "elapsed=%.1fs",
+            self._completed,
+            self._failed,
+            self._skipped_too_short,
+            self._skipped_too_long,
+            elapsed,
+        )
         return summary

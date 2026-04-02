@@ -16,6 +16,24 @@ from typing import Any
 from exaforge.readers.base import InputItem
 
 
+class ItemSkipped(Exception):
+    """Raised by a task to signal that an item should be skipped.
+
+    The orchestrator catches this exception and writes the item to a
+    separate skip file (e.g. ``too-long.jsonl``) instead of sending it
+    to the model.
+
+    Parameters
+    ----------
+    reason : str
+        Human-readable reason the item was skipped.
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
 class BaseTask(ABC):
     """Interface that every task must implement."""
 
@@ -52,3 +70,12 @@ class BaseTask(ABC):
             Parsed output to be merged into the output record.
         """
         ...
+
+    def extract_item_metadata(self, item: InputItem) -> dict[str, Any]:
+        """Extract extra metadata from the input item for the output.
+
+        Override this to promote fields from the input record into
+        the top-level output metadata.  The default returns an empty
+        dict (no extra fields).
+        """
+        return {}

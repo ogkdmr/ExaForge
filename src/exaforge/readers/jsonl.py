@@ -87,7 +87,7 @@ class JsonlReader(BaseReader):
 
                 item_id = str(
                     record.get(
-                        self.config.id_field, f"{p.stem}:{line_no}"
+                        self.config.id_field, f"{p.stem}_{line_no}"
                     )
                 )
                 index[item_id] = (p, line_no)
@@ -141,7 +141,7 @@ class JsonlReader(BaseReader):
                 text = str(record.get(self.config.text_field, ""))
                 item_id = str(
                     record.get(
-                        self.config.id_field, f"{fpath.stem}:{line_no}"
+                        self.config.id_field, f"{fpath.stem}_{line_no}"
                     )
                 )
                 items.append(

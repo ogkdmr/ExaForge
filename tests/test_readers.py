@@ -166,7 +166,7 @@ class TestJsonlReader:
         p.write_text(json.dumps({"text": "hello"}) + "\n")
         cfg = JsonlReaderConfig(input_dir=tmp_dir)
         items = JsonlReader(cfg).read()
-        assert items[0].id == "no_id:1"
+        assert items[0].id == "no_id_1"
 
     def test_skips_blank_lines(self, tmp_dir: Path) -> None:
         p = tmp_dir / "with_blanks.jsonl"

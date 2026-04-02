@@ -19,18 +19,21 @@ from exaforge.readers.base import InputItem
 class ItemSkipped(Exception):
     """Raised by a task to signal that an item should be skipped.
 
-    The orchestrator catches this exception and writes the item to a
-    separate skip file (e.g. ``too-long.jsonl``) instead of sending it
-    to the model.
+    The orchestrator catches this exception, writes the item to a
+    type-specific skip file, and increments the matching counter.
 
     Parameters
     ----------
     reason : str
         Human-readable reason the item was skipped.
+    skip_type : str
+        Category used by the orchestrator to route to the right file
+        and counter.  Conventional values: ``"too_long"``, ``"too_short"``.
     """
 
-    def __init__(self, reason: str) -> None:
+    def __init__(self, reason: str, skip_type: str = "skipped") -> None:
         self.reason = reason
+        self.skip_type = skip_type
         super().__init__(reason)
 
 

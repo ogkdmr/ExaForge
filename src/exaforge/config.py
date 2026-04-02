@@ -160,6 +160,7 @@ class QAGenerationTaskConfig(BaseConfig):
     top_p: float = 1.0
     questions_per_novel: int = 20
     max_input_tokens: int = 110000
+    min_text_chars: int = 5000
 
 
 TaskConfigs = Union[
@@ -191,7 +192,7 @@ class JsonlReaderConfig(BaseConfig):
     input_dir: Path = Path(".")
     glob_patterns: list[str] = Field(default=["*.jsonl"])
     text_field: str = "text"
-    id_field: Optional[str] = None
+    id_field: Optional[str] = "id"
 
     @field_validator("input_dir")
     @classmethod

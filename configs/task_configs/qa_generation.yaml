@@ -8,7 +8,7 @@
 #   exaforge run --config configs/task_configs/qa_generation.yaml
 
 aegis:
-    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml2
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml
     auto_launch: true
     wait_for_endpoints: true
 
@@ -19,7 +19,7 @@ task:
         You generate high-quality, diverse questions from fiction novels.
         You always return valid JSON and copy passages verbatim from the text.
     temperature: 0.7
-    max_tokens: 16000
+    max_tokens: 16000 #maximum generated tokens
     top_p: 1.0
     questions_per_novel: 20
     max_input_tokens: 110000  # ~110K tokens; novels above this go to too-long.jsonl
@@ -28,7 +28,7 @@ reader:
     name: jsonl
     input_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/chunks
     text_field: text
-    id_field: id  # No 'id' field exists in data; reader falls back to {filename}_{line_number}
+    id_field: null  # IDs are derived from filename_line by the reader
 
 writer:
     name: jsonl
@@ -53,5 +53,5 @@ checkpoint:
     enabled: true
     checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/qa_output/checkpoint.json
 
-max_items: 0  # process all novels
+max_items: 32  # process all novels
 batch_size: 256  # smaller batches — novels are much larger than papers

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Literal, Optional, TypeVar, Union
+from typing import Literal, Optional, TypeVar, Union, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -191,7 +191,7 @@ class JsonlReaderConfig(BaseConfig):
     input_dir: Path = Path(".")
     glob_patterns: list[str] = Field(default=["*.jsonl"])
     text_field: str = "text"
-    id_field: str = "id"
+    id_field: Optional[str] = None
 
     @field_validator("input_dir")
     @classmethod

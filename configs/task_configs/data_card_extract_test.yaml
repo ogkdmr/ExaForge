@@ -8,7 +8,7 @@
 
 aegis:
     # Path to an Aegis YAML config file (required when auto_launch is true)
-    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml2
     auto_launch: true
     wait_for_endpoints: true
     # endpoints_file: omitted — ExaForge will write to local_runs/<timestamp>/aegis_endpoints.txt automatically
@@ -26,7 +26,7 @@ reader:
     name: jsonl
     input_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/batched
     text_field: text
-    id_field: id
+    id_field: id 
 
 writer:
     name: jsonl

@@ -1,0 +1,58 @@
+# ExaForge — Novel Q/A generation for Mamba pretraining
+#
+# Generates Who/Why/When/How/What/Where questions from ~86K English
+# fiction novels.  Each novel produces questions with verbatim answer
+# passages and temporal ordering metadata.
+#
+# Usage:
+#   exaforge run --config configs/task_configs/qa_generation.yaml
+
+aegis:
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml
+    auto_launch: true
+    wait_for_endpoints: true
+
+task:
+    name: qa_generation
+    system_prompt: >-
+        You are an expert reading comprehension analyst.
+        You generate high-quality, diverse questions from fiction novels.
+        You always return valid JSON and copy passages verbatim from the text.
+    temperature: 0.7
+    max_tokens: 18000 #maximum generated tokens
+    top_p: 1.0
+    questions_per_novel: 20
+    max_input_tokens: 113000  # ~110K tokens; novels above this go to too-long.jsonl
+    min_text_chars: 5000      # cover pages / metadata are <500 chars; this filters them to too-short.jsonl
+
+reader:
+    name: jsonl
+    input_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/chunks
+    text_field: text
+    id_field: null  # IDs are derived from filename_line by the reader
+
+writer:
+    name: jsonl
+    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/qa_output_debugscaling
+    buffer_size: 1536  # 1536 novels × 20 questions; keeps flush cadence at ~1 per 1536 novels
+    base_name: novel_qa
+
+client:
+    model: openai/gpt-oss-120b
+    max_concurrent_requests: 6144  # 1536 instances × 4 queue depth
+    timeout: 600  # longer timeout — novels are large inputs
+    max_retries: 3
+    retry_backoff: 2.0
+    load_balance_strategy: round_robin
+
+monitor:
+    log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/qa_output_debugscaling/run.log
+    progress_interval: 30
+    enable_rich: true
+
+checkpoint:
+    enabled: true
+    checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/qa_output_debugscaling/checkpoint.json
+
+max_items: 0  # process all novels
+batch_size: 6144  # 4 novels/instance/batch; ~14 Lustre round-trips for 86K novels (~1.8 GB RAM/batch)

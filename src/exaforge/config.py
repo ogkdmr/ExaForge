@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Literal, Optional, TypeVar, Union
+from typing import Literal, Optional, TypeVar, Union, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -147,7 +147,25 @@ class CardExtractionTaskConfig(BaseConfig):
     character_limit: int = 0
 
 
-TaskConfigs = Union[GenerationTaskConfig, CardExtractionTaskConfig]
+class QAGenerationTaskConfig(BaseConfig):
+    """Config for the novel Q/A generation task."""
+
+    name: Literal["qa_generation"] = "qa_generation"  # type: ignore[assignment]
+    system_prompt: str = (
+        "You are an expert reading comprehension analyst. "
+        "You generate high-quality questions from fiction novels."
+    )
+    temperature: float = 0.7
+    max_tokens: int = 16000
+    top_p: float = 1.0
+    questions_per_novel: int = 20
+    max_input_tokens: int = 110000
+    min_text_chars: int = 5000
+
+
+TaskConfigs = Union[
+    GenerationTaskConfig, CardExtractionTaskConfig, QAGenerationTaskConfig
+]
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +192,7 @@ class JsonlReaderConfig(BaseConfig):
     input_dir: Path = Path(".")
     glob_patterns: list[str] = Field(default=["*.jsonl"])
     text_field: str = "text"
-    id_field: str = "id"
+    id_field: Optional[str] = "id"
 
     @field_validator("input_dir")
     @classmethod

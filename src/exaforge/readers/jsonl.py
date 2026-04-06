@@ -85,10 +85,10 @@ class JsonlReader(BaseReader):
                 except json.JSONDecodeError:
                     continue
 
-                item_id = str(
-                    record.get(
-                        self.config.id_field, f"{p.stem}:{line_no}"
-                    )
+                item_id = (
+                    str(record[self.config.id_field])
+                    if self.config.id_field and self.config.id_field in record
+                    else f"{p.stem}_{line_no}"
                 )
                 index[item_id] = (p, line_no)
 
@@ -139,10 +139,10 @@ class JsonlReader(BaseReader):
                     continue
 
                 text = str(record.get(self.config.text_field, ""))
-                item_id = str(
-                    record.get(
-                        self.config.id_field, f"{fpath.stem}:{line_no}"
-                    )
+                item_id = (
+                    str(record[self.config.id_field])
+                    if self.config.id_field and self.config.id_field in record
+                    else f"{fpath.stem}_{line_no}"
                 )
                 items.append(
                     InputItem(

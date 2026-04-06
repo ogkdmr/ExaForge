@@ -13,8 +13,11 @@ into a single async pipeline:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import time
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from exaforge.checkpoint import CheckpointManager
@@ -24,9 +27,9 @@ from exaforge.endpoints import EndpointPool
 from exaforge.readers import get_reader
 from exaforge.readers.base import InputItem
 from exaforge.tasks import get_task
-from exaforge.tasks.base import BaseTask
+from exaforge.tasks.base import BaseTask, ItemSkipped
 from exaforge.writers import get_writer
-from exaforge.writers.base import BaseWriter, OutputRecord
+from exaforge.writers.base import BaseWriter
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +69,12 @@ class Orchestrator:
 
         self._completed = 0
         self._failed = 0
+        self._skipped_too_long = 0
+        self._skipped_too_short = 0
+        self._skipped_other = 0
         self._total = 0
         self._start_time = 0.0
+        self._skip_files: dict[str, Path] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -147,12 +154,16 @@ class Orchestrator:
                 await self._process_items(batch_items)
                 self.checkpoint.save()
                 logger.info(
-                    "Batch %d/%d done. Progress: %d/%d completed, %d failed",
+                    "Batch %d/%d done. "
+                    "completed=%d/%d  failed=%d  "
+                    "skipped[too_short]=%d  skipped[too_long]=%d",
                     batch_num,
                     num_batches,
                     self._completed,
                     self._total,
                     self._failed,
+                    self._skipped_too_short,
+                    self._skipped_too_long,
                 )
         finally:
             self.writer.close()
@@ -170,9 +181,44 @@ class Orchestrator:
         tasks = [self._process_one(item) for item in items]
         await asyncio.gather(*tasks)
 
+    def _write_skipped(
+        self, item: InputItem, reason: str, skip_type: str
+    ) -> None:
+        """Append a skipped item to the appropriate skip file."""
+        filename = f"{skip_type}.jsonl"
+        if skip_type not in self._skip_files:
+            path = Path(self.config.writer.output_dir) / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._skip_files[skip_type] = path
+
+        entry = {
+            "id": item.id,
+            "skip_type": skip_type,
+            "reason": reason,
+            **item.metadata,
+        }
+        with open(self._skip_files[skip_type], "a", encoding="utf-8") as fp:
+            fp.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            fp.flush()
+            os.fsync(fp.fileno())
+
     async def _process_one(self, item: InputItem) -> None:
         """Process a single input item end-to-end."""
-        messages = self.task.prepare_messages(item)
+        try:
+            messages = self.task.prepare_messages(item)
+        except ItemSkipped as exc:
+            logger.info(
+                "Skipped [%s] %s: %s", exc.skip_type, item.id, exc.reason
+            )
+            self._write_skipped(item, exc.reason, exc.skip_type)
+            self.checkpoint.mark_done(item.id)
+            if exc.skip_type == "too_long":
+                self._skipped_too_long += 1
+            elif exc.skip_type == "too_short":
+                self._skipped_too_short += 1
+            else:
+                self._skipped_other += 1
+            return
 
         task_cfg = self.config.task
         request = ChatRequest(
@@ -187,12 +233,8 @@ class Orchestrator:
 
         if response.success:
             parsed = self.task.parse_response(response.text)
-            record = OutputRecord(
-                id=item.id,
-                response=response.text,
-                metadata={**item.metadata, **parsed},
-            )
-            self.writer.write([record])
+            records = self.task.build_records(item, response.text, parsed)
+            self.writer.write(records)
             self.checkpoint.mark_done(item.id)
             self._completed += 1
         else:
@@ -215,10 +257,19 @@ class Orchestrator:
 
     def _summary(self) -> dict[str, Any]:
         elapsed = time.monotonic() - self._start_time
-        return {
+        total_skipped = (
+            self._skipped_too_long
+            + self._skipped_too_short
+            + self._skipped_other
+        )
+        summary: dict[str, Any] = {
             "total": self._total,
             "completed": self._completed,
             "failed": self._failed,
+            "skipped_too_short": self._skipped_too_short,
+            "skipped_too_long": self._skipped_too_long,
+            "skipped_other": self._skipped_other,
+            "skipped_total": total_skipped,
             "elapsed_seconds": round(elapsed, 2),
             "items_per_second": round(
                 self._completed / elapsed, 2
@@ -226,3 +277,18 @@ class Orchestrator:
             if elapsed > 0
             else 0,
         }
+        if self._skip_files:
+            summary["skip_files"] = {
+                k: str(v) for k, v in self._skip_files.items()
+            }
+        logger.info(
+            "Run complete. completed=%d  failed=%d  "
+            "skipped[too_short]=%d  skipped[too_long]=%d  "
+            "elapsed=%.1fs",
+            self._completed,
+            self._failed,
+            self._skipped_too_short,
+            self._skipped_too_long,
+            elapsed,
+        )
+        return summary

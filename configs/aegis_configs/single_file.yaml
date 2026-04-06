@@ -1,7 +1,7 @@
 port_start: 8000
 hf_home: /tmp/hf_home
-hf_token: <your token>
-walltime: "01:00:00"
+hf_token: <your_huggingface_token>
+walltime: "1:00:00"
 account: ModCon
 queue: debug-scaling
 filesystems: flare:home
@@ -12,13 +12,13 @@ aegis_env: /home/ogokdemir/.conda/envs/exaforge-env/
 models:
   - model: openai/gpt-oss-120b
     #PBS will request 64 / (12 / tensor_parallel_size) nodes on Aurora. Ensure divisibility.
-    instances: 384
+    instances: 768
     tensor_parallel_size: 4
     model_source: /flare/datasets/model-weights/hub/models--openai--gpt-oss-120b
     download_weights: false
     extra_vllm_args:
       - --max-model-len
-      - "96000" # this should fit the full paper and the ~4k token paper card.
+      - "131072" # this should fit the full paper and the ~4k token paper card.
 
 wait: true
 bench: false

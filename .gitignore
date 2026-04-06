@@ -16,4 +16,4 @@ htmlcov/
 local_runs/
 notes/
 .cursor
-
+.openclaude-profile.json

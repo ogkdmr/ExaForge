@@ -15,6 +15,7 @@ from typing import Any
 
 from exaforge.config import QAGenerationTaskConfig
 from exaforge.readers.base import InputItem
+from exaforge.writers.base import OutputRecord
 
 from .base import BaseTask, ItemSkipped
 
@@ -95,6 +96,60 @@ class QAGenerationTask(BaseTask):
             "source_zim": original.get("source_zim", ""),
             "title": original.get("title", ""),
         }
+
+    def build_records(
+        self,
+        item: InputItem,
+        response_text: str,
+        parsed: dict[str, Any],
+    ) -> list[OutputRecord]:
+        """Fan out one record per Q/A pair.
+
+        Each output line is a flat, self-contained object — no nested
+        lists to unpack in post-processing.  Non-narrative responses
+        (content_type != "narrative") produce a single summary record
+        so the failure is still visible in the output.
+        """
+        provenance = self.extract_item_metadata(item)
+        content_type = parsed.get("content_type", "unknown")
+        extraction_successful = parsed.get("extraction_successful", False)
+        qa_pairs = parsed.get("qa_pairs", [])
+
+        if not extraction_successful or not qa_pairs:
+            # Keep one record so the failure is auditable.
+            return [
+                OutputRecord(
+                    id=item.id,
+                    response=response_text,
+                    metadata={
+                        **provenance,
+                        "content_type": content_type,
+                        "extraction_successful": False,
+                        "num_questions": 0,
+                    },
+                )
+            ]
+
+        records = []
+        for qa in qa_pairs:
+            qa_index = qa.get("qa_index", 0)
+            record_id = f"{item.id}_q{qa_index:02d}"
+            records.append(
+                OutputRecord(
+                    id=record_id,
+                    response="",
+                    metadata={
+                        **provenance,
+                        "content_type": content_type,
+                        "extraction_successful": True,
+                        "qa_index": qa_index,
+                        "question_type": qa.get("question_type", ""),
+                        "question": qa.get("question", ""),
+                        "passage": qa.get("passage", ""),
+                    },
+                )
+            )
+        return records
 
     # ------------------------------------------------------------------
     # Prompt

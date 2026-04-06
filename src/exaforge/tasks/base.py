@@ -11,9 +11,12 @@ A task is responsible for two things:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from exaforge.readers.base import InputItem
+
+if TYPE_CHECKING:
+    from exaforge.writers.base import OutputRecord
 
 
 class ItemSkipped(Exception):
@@ -82,3 +85,28 @@ class BaseTask(ABC):
         dict (no extra fields).
         """
         return {}
+
+    def build_records(
+        self,
+        item: InputItem,
+        response_text: str,
+        parsed: dict[str, Any],
+    ) -> list[OutputRecord]:
+        """Build the output records for one completed inference.
+
+        The default produces a single :class:`OutputRecord` that merges
+        ``item.metadata``, :meth:`extract_item_metadata`, and ``parsed``.
+
+        Override this method to fan out one inference result into
+        multiple records (e.g. one record per Q/A pair).
+        """
+        from exaforge.writers.base import OutputRecord
+
+        extra = self.extract_item_metadata(item)
+        return [
+            OutputRecord(
+                id=item.id,
+                response=response_text,
+                metadata={**item.metadata, **extra, **parsed},
+            )
+        ]

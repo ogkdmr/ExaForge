@@ -29,7 +29,7 @@ from exaforge.readers.base import InputItem
 from exaforge.tasks import get_task
 from exaforge.tasks.base import BaseTask, ItemSkipped
 from exaforge.writers import get_writer
-from exaforge.writers.base import BaseWriter, OutputRecord
+from exaforge.writers.base import BaseWriter
 
 logger = logging.getLogger(__name__)
 
@@ -233,13 +233,8 @@ class Orchestrator:
 
         if response.success:
             parsed = self.task.parse_response(response.text)
-            extra = self.task.extract_item_metadata(item)
-            record = OutputRecord(
-                id=item.id,
-                response=response.text,
-                metadata={**item.metadata, **extra, **parsed},
-            )
-            self.writer.write([record])
+            records = self.task.build_records(item, response.text, parsed)
+            self.writer.write(records)
             self.checkpoint.mark_done(item.id)
             self._completed += 1
         else:

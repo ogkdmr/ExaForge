@@ -7,10 +7,11 @@ The original file is left untouched.
 
 import json
 from pathlib import Path
+import sys
 
-INPUT_FILE = Path(__file__).parent / "model_cards_0000.jsonl"
-OUTPUT_FILE = Path(__file__).parent / "model_cards_0000_success.jsonl"
-
+INPUT_FILE = sys.argv[1]
+OUTPUT_FILE = sys.argv[2]
+PATTERN = sys.argv[3]
 
 def main():
     total = 0
@@ -21,7 +22,7 @@ def main():
         for line in fin:
             total += 1
             record = json.loads(line)
-            if "NO_MODEL_FOUND" in record.get("response", ""):
+            if PATTERN in record.get("response", ""):
                 skipped += 1
                 continue
             fout.write(line)
@@ -31,7 +32,7 @@ def main():
     print(f"Output file: {OUTPUT_FILE}")
     print(f"Total entries     : {total:,}")
     print(f"Kept (success)    : {kept:,}")
-    print(f"Skipped (no model): {skipped:,}")
+    print(f"Skipped {PATTERN}: {skipped:,}")
 
 
 if __name__ == "__main__":

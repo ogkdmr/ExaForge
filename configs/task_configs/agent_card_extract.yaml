@@ -8,14 +8,14 @@
 
 aegis:
     # Path to an Aegis YAML config file (required when auto_launch is true)
-    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/single_file.yaml2
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/model_card_aegis.yaml
     auto_launch: true
     wait_for_endpoints: true
     # endpoints_file: omitted — ExaForge will write to local_runs/<timestamp>/aegis_endpoints.txt automatically
 
 task:
     name: card_extraction
-    mode: data_card                # model_card | agent_card | data_card
+    mode: agent_card                # model_card | agent_card | data_card
     system_prompt: >-
         You are a helpful assistant specialised in analysing
         scientific texts for bioinformatics workflows.  
@@ -30,9 +30,9 @@ reader:
 
 writer:
     name: jsonl
-    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards
+    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/agent_cards_full_run
     buffer_size: 1536 # number of individual completed vLLM inferences to buffer before writing to disk.
-    base_name: data_cards
+    base_name: agent_cards
 
 client:
     # Must match vLLM's served model id (same as `model:` in the Aegis config), not the on-disk hub folder name.
@@ -40,20 +40,20 @@ client:
     # Global in-flight request cap across ALL endpoints combined.
     # Rule of thumb for production: num_endpoints × desired_queue_depth
     # e.g. 12 endpoints × 16 = 192. For this test run 64 is fine.
-    max_concurrent_requests: 6144 # 384 (instances) * 16 (requests per instance)
+    max_concurrent_requests: 12288 # 768 (instances) * 16 (requests per instance)
     timeout: 300
     max_retries: 3
     retry_backoff: 2.0
     load_balance_strategy: round_robin
 
 monitor:
-    log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards/run.log
+    log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/agent_cards_full_run/run.log
     progress_interval: 30 #seconds
     enable_rich: true
 
 checkpoint:
     enabled: true
-    checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/test_data_cards/checkpoint.json
+    checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/agent_cards_full_run/checkpoint.json
 
 max_items: 0  # test mode — remove or set to 0 to process all papers
 
@@ -61,4 +61,4 @@ max_items: 0  # test mode — remove or set to 0 to process all papers
 # Each batch is fully processed and flushed before the next is loaded.
 # Controls memory independently of max_concurrent_requests.
 # For production (58k papers, no max_items): set to 1000–2000 and remove max_items.
-batch_size: 1536
+batch_size: 6144 # 768 (instances) * 8 (requests per instance)

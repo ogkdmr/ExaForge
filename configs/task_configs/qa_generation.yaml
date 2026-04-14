@@ -33,7 +33,7 @@ reader:
 
 writer:
     name: jsonl
-    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/qa_output_debugscaling
+    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/sam_data/qa_output
     buffer_size: 1536  # 1536 novels × 20 questions; keeps flush cadence at ~1 per 1536 novels
     base_name: novel_qa
 

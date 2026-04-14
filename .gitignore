@@ -13,6 +13,7 @@ build/
 htmlcov/
 .coverage
 
+logs/
 local_runs/
 notes/
 .cursor

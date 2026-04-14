@@ -1,6 +1,6 @@
 port_start: 8000
 hf_home: /tmp/hf_home
-hf_token: <TOKEN> 
+hf_token: <TOKEN>
 walltime: "4:00:00"
 account: ModCon
 queue: prod
@@ -12,7 +12,7 @@ aegis_env: /home/ogokdemir/.conda/envs/exaforge-env/
 models:
   - model: openai/gpt-oss-120b
     #PBS will request 64 / (12 / tensor_parallel_size) nodes on Aurora. Ensure divisibility.
-    instances: 1536
+    instances: 768
     tensor_parallel_size: 4
     model_source: /flare/datasets/model-weights/hub/models--openai--gpt-oss-120b
     download_weights: false

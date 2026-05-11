@@ -163,8 +163,27 @@ class QAGenerationTaskConfig(BaseConfig):
     min_text_chars: int = 5000
 
 
+class JournalCardExtractionTaskConfig(BaseConfig):
+    """Config for the journal / publication card-extraction task."""
+
+    name: Literal["journal_card_extraction"] = "journal_card_extraction"  # type: ignore[assignment]
+    system_prompt: str = (
+        "You are a helpful assistant specialised in analysing "
+        "scientific texts and extracting structured publication metadata "
+        "for bioinformatics and life-science research."
+    )
+    temperature: float = 0.3
+    max_tokens: int = 4000
+    top_p: float = 1.0
+    chunk_size: int = 0
+    character_limit: int = 0
+
+
 TaskConfigs = Union[
-    GenerationTaskConfig, CardExtractionTaskConfig, QAGenerationTaskConfig
+    GenerationTaskConfig,
+    CardExtractionTaskConfig,
+    QAGenerationTaskConfig,
+    JournalCardExtractionTaskConfig,
 ]
 
 

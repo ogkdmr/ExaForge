@@ -1,0 +1,54 @@
+# ExaForge — Journal / publication card extraction
+#
+# Extracts structured publication metadata (study design, genome info,
+# metagenome samples, metabolites, sequencing, bioinformatics tools,
+# results, and database accessions) from scientific papers.
+#
+# Usage:
+#   exaforge run --config configs/task_configs/journal_card_extract.yaml
+
+aegis:
+    config_path: /home/ogokdemir/ExaForge/configs/aegis_configs/model_card_aegis.yaml
+    auto_launch: true
+    wait_for_endpoints: true
+
+task:
+    name: journal_card_extraction
+    system_prompt: >-
+        You are a helpful assistant specialised in analysing
+        scientific texts and extracting structured publication metadata
+        for bioinformatics and life-science research.
+    temperature: 0.0
+    max_tokens: 4000
+
+reader:
+    name: jsonl
+    input_dir: /lus/flare/projects/ModCon/ogokdemir/ASM-papers/parsed_for_exaforge
+    text_field: text
+    id_field: id
+
+writer:
+    name: jsonl
+    output_dir: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/journal_cards
+    buffer_size: 1536
+    base_name: journal_cards
+
+client:
+    model: openai/gpt-oss-120b
+    max_concurrent_requests: 6144
+    timeout: 300
+    max_retries: 3
+    retry_backoff: 2.0
+    load_balance_strategy: round_robin
+
+monitor:
+    log_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/journal_cards/run.log
+    progress_interval: 30
+    enable_rich: true
+
+checkpoint:
+    enabled: true
+    checkpoint_file: /lus/flare/projects/FRAME-IDP/ogokdemir/data/exaforge_data/journal_cards/checkpoint.json
+
+max_items: 0
+batch_size: 1536
